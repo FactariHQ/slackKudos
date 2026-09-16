@@ -210,7 +210,7 @@ function resolveChannel_(nameOrId) {
   if (cached) return cached;
 
   var cursor = '';
-  for (var page = 0; page < 10; page++) {
+  for (var page = 0; page < 40; page++) {
     var res = slackApiGet_('conversations.list', {
       limit: 200,
       exclude_archived: true,
