@@ -1,0 +1,293 @@
+/**
+ * Orange Dots — 12_Setup.gs
+ * One-time bootstrap, run from the Apps Script editor.
+ *
+ * setupSpreadsheet() is idempotent: run it again after upgrading and it will add
+ * missing tabs, add missing config keys, and leave existing data and edited
+ * values alone.
+ */
+
+/**
+ * Creates or repairs the backing spreadsheet, writes the config defaults, and
+ * generates a URL secret. Run this first.
+ */
+function setupSpreadsheet() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty(PROP_SPREADSHEET_ID);
+  var ss;
+
+  if (id) {
+    ss = SpreadsheetApp.openById(id);
+  } else {
+    var active = null;
+    try { active = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { active = null; }
+    ss = active || SpreadsheetApp.create('Orange Dots');
+    props.setProperty(PROP_SPREADSHEET_ID, ss.getId());
+  }
+  __ssCache = ss;
+  __sheetCache = {};
+
+  // --- tabs ----------------------------------------------------------------
+  ['CONFIG', 'ROSTER', 'LEDGER', 'BALANCES', 'BADGES', 'RAFFLE', 'EVENTS'].forEach(function (key) {
+    var name = SHEETS[key];
+    var s = ss.getSheetByName(name);
+    if (!s) s = ss.insertSheet(name);
+    var cols = COLUMNS[key];
+    var existing = s.getLastColumn() > 0 && s.getLastRow() > 0
+      ? s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0].map(String)
+      : [];
+    // Add any columns a newer version introduced, without disturbing the old ones.
+    var missing = cols.filter(function (c) { return existing.indexOf(c) === -1; });
+    if (!existing.length) {
+      s.getRange(1, 1, 1, cols.length).setValues([cols]);
+    } else if (missing.length) {
+      s.getRange(1, existing.length + 1, 1, missing.length).setValues([missing]);
+    }
+    s.setFrozenRows(1);
+    s.getRange(1, 1, 1, Math.max(cols.length, s.getLastColumn()))
+      .setFontWeight('bold').setBackground('#fff1e0');
+
+    // Columns holding period keys must be plain text. Left as "automatic",
+    // Sheets parses "2026-09" and "2026-09-16" into Date values, which breaks
+    // every key comparison downstream — monthly totals read as zero and the
+    // raffle believes it has no entries at all.
+    var live = s.getLastColumn() > 0
+      ? s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0].map(String)
+      : [];
+    ['period_key', 'month_key', 'week_key', 'period', 'last_gave_period'].forEach(function (colName) {
+      var at = live.indexOf(colName);
+      if (at !== -1) s.getRange(1, at + 1, Math.max(s.getMaxRows ? s.getMaxRows() : 1000, 1000), 1)
+        .setNumberFormat('@');
+    });
+  });
+
+  // Remove the default empty sheet a brand-new spreadsheet comes with.
+  var def = ss.getSheetByName('Sheet1');
+  if (def && ss.getSheets().length > 1 && def.getLastRow() === 0) ss.deleteSheet(def);
+
+  // --- config defaults -----------------------------------------------------
+  var cfgSheet = ss.getSheetByName(SHEETS.CONFIG);
+  var existingKeys = {};
+  if (cfgSheet.getLastRow() > 1) {
+    cfgSheet.getRange(2, 1, cfgSheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
+      var k = String(r[0]).trim();
+      if (k) existingKeys[k] = true;
+    });
+  }
+  var toAdd = [];
+  Object.keys(CONFIG_DEFAULTS).forEach(function (k) {
+    if (existingKeys[k]) return;
+    var d = CONFIG_DEFAULTS[k];
+    var v = d.value;
+    if (k === 'URL_SECRET' && !v) v = generateUrlSecret_();
+    toAdd.push([k, v, d.notes]);
+  });
+  if (toAdd.length) {
+    cfgSheet.getRange(cfgSheet.getLastRow() + 1, 1, toAdd.length, 3).setValues(toAdd);
+  }
+  cfgSheet.setColumnWidth(1, 250);
+  cfgSheet.setColumnWidth(2, 260);
+  cfgSheet.setColumnWidth(3, 620);
+  cfgSheet.getRange(1, 3, cfgSheet.getLastRow(), 1).setWrap(true);
+
+  cacheDropAll_();
+  __configCache = null;
+
+  var secret = cfgStr('URL_SECRET');
+  var msg = [
+    'Orange Dots is set up.',
+    '',
+    'Spreadsheet: ' + ss.getUrl(),
+    'URL secret:  ' + secret,
+    '',
+    'Next:',
+    '  1. Deploy → New deployment → Web app → Execute as: Me, Access: Anyone.',
+    '  2. Paste the /exec URL plus ?k=' + secret + ' into the Slack app\'s three Request URLs.',
+    '  3. Put the bot token into the Config tab (SLACK_BOT_TOKEN), plus ALLOWED_TEAM_ID.',
+    '  4. Run installTriggers().',
+    '  5. Run selfTest() to check the wiring.'
+  ].join('\n');
+  console.log(msg);
+  return msg;
+}
+
+/**
+ * Prints the Request URL to paste into Slack, secret included.
+ * Run after the web app has been deployed at least once.
+ */
+function showRequestUrl() {
+  var url;
+  try {
+    url = ScriptApp.getService().getUrl();
+  } catch (e) {
+    url = '';
+  }
+  if (!url) {
+    var msg = 'No web app deployment yet. Deploy → New deployment → Web app, then run this again.';
+    console.log(msg);
+    return msg;
+  }
+  var full = url + '?k=' + cfgStr('URL_SECRET');
+  console.log('Request URL for all three Slack fields:\n\n' + full +
+    '\n\nLeaderboard page (safe to share internally):\n\n' + full + '&period=period');
+  return full;
+}
+
+/**
+ * Checks the wiring end to end and reports what is missing, without sending
+ * anything to the team.
+ */
+function selfTest() {
+  var problems = [];
+  var notes = [];
+
+  if (!cfgStr('SLACK_BOT_TOKEN')) problems.push('SLACK_BOT_TOKEN is empty in the Config tab.');
+  if (!cfgStr('URL_SECRET')) problems.push('URL_SECRET is empty — run setupSpreadsheet().');
+  if (!cfgStr('ALLOWED_TEAM_ID')) notes.push('ALLOWED_TEAM_ID is empty. Set it to lock the app to your workspace.');
+
+  if (cfgStr('SLACK_BOT_TOKEN')) {
+    var auth = slackApi_('auth.test', {}, true);
+    if (!auth.ok) {
+      problems.push('Slack rejected the bot token: ' + auth.error);
+    } else {
+      notes.push('Connected to ' + auth.team + ' as ' + auth.user + '.');
+      if (!cfgStr('ALLOWED_TEAM_ID')) {
+        setConfig('ALLOWED_TEAM_ID', auth.team_id);
+        notes.push('ALLOWED_TEAM_ID set automatically to ' + auth.team_id + '.');
+      }
+    }
+
+    var channel = resolveChannel_(cfgStr('ANNOUNCE_CHANNEL'));
+    if (!channel) {
+      problems.push('Cannot resolve ANNOUNCE_CHANNEL (' + cfgStr('ANNOUNCE_CHANNEL') + ').');
+    } else {
+      var probe = slackApi_('conversations.info', { channel: channel }, true);
+      if (!probe.ok) {
+        notes.push('Could not read ' + cfgStr('ANNOUNCE_CHANNEL') + ' (' + probe.error +
+          '). Invite the bot with /invite @OrangeDots.');
+      } else if (probe.channel && probe.channel.is_member === false) {
+        problems.push('The bot is not in ' + cfgStr('ANNOUNCE_CHANNEL') + '. Run /invite @OrangeDots there.');
+      } else {
+        notes.push('Announcement channel OK: #' + (probe.channel ? probe.channel.name : channel) + '.');
+      }
+    }
+  }
+
+  try {
+    var probeBal = getBalance_('U_SELFTEST_PROBE', 'self test');
+    notes.push('Spreadsheet writable. Period key ' + probeBal.period_key + '.');
+    removeUser_('U_SELFTEST_PROBE');
+  } catch (e) {
+    problems.push('Cannot write to the spreadsheet: ' + e);
+  }
+
+  var triggers = ScriptApp.getProjectTriggers().filter(function (t) {
+    return t.getHandlerFunction() === 'dailyJob';
+  });
+  if (!triggers.length) problems.push('No daily trigger installed — run installTriggers().');
+  else notes.push('Daily job is scheduled.');
+
+  try {
+    var url = ScriptApp.getService().getUrl();
+    notes.push('Web app URL: ' + url + '?k=' + cfgStr('URL_SECRET'));
+  } catch (e) {
+    notes.push('No deployment URL yet — deploy the web app.');
+  }
+
+  var out = (problems.length ? 'PROBLEMS\n  ' + problems.join('\n  ') + '\n\n' : 'No problems found.\n\n') +
+    'NOTES\n  ' + notes.join('\n  ');
+  console.log(out);
+  return out;
+}
+
+/** Deletes a person's balance row. Used by selfTest cleanup and by admins. */
+function removeUser_(userId) {
+  var idx = balanceIndex_();
+  if (idx[userId]) {
+    sheet_(SHEETS.BALANCES).deleteRow(idx[userId]);
+    cacheDrop_('balances.index');
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Seeds a handful of fake dots so the leaderboard and App Home can be reviewed
+ * before the team is let loose. Run clearDemoData() afterwards.
+ */
+function seedDemoData() {
+  var people = [
+    ['U_DEMO_1', 'Ada'], ['U_DEMO_2', 'Bo'], ['U_DEMO_3', 'Cleo'],
+    ['U_DEMO_4', 'Dev'], ['U_DEMO_5', 'Esme']
+  ];
+  var reasons = [
+    'covered two sessions at no notice on Tuesday',
+    'rewrote the intake packet so families can actually read it',
+    'stayed late to finish the auth before the deadline',
+    'caught the billing error before it went out',
+    'trained the new tech without being asked'
+  ];
+  var values = valueList();
+
+  people.forEach(function (p) {
+    var bal = getBalance_(p[0], p[1], false);
+    rollForward_(bal);
+    writeBalance_(bal);
+  });
+
+  for (var i = 0; i < 18; i++) {
+    var g = people[i % people.length];
+    var r = people[(i * 3 + 1) % people.length];
+    if (g[0] === r[0]) continue;
+    var dots = (i % 4 === 0) ? 2 : 1;
+    var v = values.length ? values[i % values.length] : null;
+
+    var rb = getBalance_(r[0], r[1], false);
+    rollForward_(rb);
+    rb.received_this_period = num_(rb.received_this_period) + dots;
+    rb.received_month = num_(rb.received_month) + dots;
+    rb.received_total = num_(rb.received_total) + dots;
+    awardBadges_(rb);
+    addRaffleEntries_(r[0], r[1], dots, monthKey_());
+    writeBalance_(rb);
+
+    var gb = getBalance_(g[0], g[1], false);
+    rollForward_(gb);
+    gb.given_total = num_(gb.given_total) + dots;
+    writeBalance_(gb);
+
+    appendLedger_({
+      giver_id: g[0], giver_name: g[1], receiver_id: r[0], receiver_name: r[1],
+      dots: dots, reason: reasons[i % reasons.length],
+      value_tag: v ? v.tag : '', source: 'demo', pool: 'peer'
+    });
+  }
+  cacheDropAll_();
+  return 'Seeded demo data for ' + people.length + ' fake people. Run clearDemoData() when you are done.';
+}
+
+/** Removes everything seedDemoData() created. */
+function clearDemoData() {
+  var removed = 0;
+
+  var ledger = sheet_(SHEETS.LEDGER);
+  var lv = ledger.getDataRange().getValues();
+  for (var r = lv.length - 1; r >= 1; r--) {
+    if (String(lv[r][0]).indexOf('od_') === 0 &&
+        (String(lv[r][4]).indexOf('U_DEMO_') === 0 || String(lv[r][6]).indexOf('U_DEMO_') === 0)) {
+      ledger.deleteRow(r + 1); removed++;
+    }
+  }
+
+  [SHEETS.BALANCES, SHEETS.BADGES, SHEETS.RAFFLE, SHEETS.ROSTER].forEach(function (name) {
+    var s = sheet_(name);
+    var v = s.getDataRange().getValues();
+    var idCol = name === SHEETS.RAFFLE ? 1 : 0;
+    for (var i = v.length - 1; i >= 1; i--) {
+      if (String(v[i][idCol]).indexOf('U_DEMO_') === 0) { s.deleteRow(i + 1); removed++; }
+    }
+  });
+
+  cacheDropAll_();
+  return 'Removed ' + removed + ' demo rows.';
+}
