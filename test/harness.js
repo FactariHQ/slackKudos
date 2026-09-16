@@ -268,6 +268,19 @@ function createEnvironment(options = {}) {
     try { payload = params && params.payload ? JSON.parse(params.payload) : {}; } catch (e) { payload = {}; }
     state.fetches.push({ url, method, payload, params });
 
+    // Slack's read methods take query parameters. Sent as a JSON POST they come
+    // back invalid_arguments, which reads exactly like a bad ID — so the fake
+    // refuses them the same way, and a POST-shaped read fails a test here
+    // instead of at 5pm on a Friday.
+    const READ_ONLY_METHODS = [
+      'users.info', 'users.list', 'conversations.list',
+      'conversations.info', 'conversations.history'
+    ];
+    const isGet = !params || String(params.method || 'get').toLowerCase() === 'get';
+    if (READ_ONLY_METHODS.indexOf(method) !== -1 && !isGet) {
+      return jsonResponse({ ok: false, error: 'invalid_arguments' });
+    }
+
     if (state.fetchResponses[method]) return jsonResponse(state.fetchResponses[method]);
 
     switch (method) {

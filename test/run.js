@@ -1462,6 +1462,20 @@ test('REG-9 a five-person give makes no sequential profile lookups', () => {
   assert(singles.length <= 5, `expected profile lookups to be batched, saw ${singles.length}`);
 });
 
+test('REG-14 selfTest reads the announce channel the way Slack allows', () => {
+  const env = freshEnv();
+  const out = env.call('selfTest');
+  assert(out.indexOf('invalid_arguments') === -1,
+    'conversations.info must be a GET — a JSON POST returns invalid_arguments');
+  assert(out.indexOf('Announcement channel OK') !== -1,
+    `selfTest should confirm the channel, got:\n${out}`);
+  const info = env.state.fetches.filter((f) => f.method === 'conversations.info');
+  eq(info.length >= 1, true, 'selfTest should probe the channel');
+  info.forEach((f) => {
+    eq(String((f.params && f.params.method) || 'get').toLowerCase(), 'get');
+  });
+});
+
 // ===========================================================================
 
 console.log(`\n${'─'.repeat(60)}`);
