@@ -1,0 +1,329 @@
+/**
+ * Orange Dots — 06_Messages.gs
+ * Everything the app says: announcements, confirmations, DMs, digests, help.
+ *
+ * Kept apart from the logic so the wording can be edited without going anywhere
+ * near the transaction, and so the tests can assert on message content.
+ */
+
+/** Playful openers for a public award. Picked by hash so a single dot reads the same everywhere. */
+var AWARD_OPENERS = [
+  'Orange dot incoming',
+  'That earned a dot',
+  'Someone noticed',
+  'Caught doing something right',
+  'Dot dispensed',
+  'Recognition, delivered'
+];
+
+function pickOpener_(seed) {
+  var s = String(seed || '');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0x7fffffff;
+  return AWARD_OPENERS[h % AWARD_OPENERS.length];
+}
+
+/**
+ * The public message announcing one or more awards.
+ * @param {Object} result the giveDots_ result
+ * @param {{giverId:string, reason:string, value:Object}} req
+ * @return {{text:string, blocks:Array}}
+ */
+function buildAwardMessage_(result, req) {
+  var lines = [];
+  var totalDots = 0;
+  result.awarded.forEach(function (a) { totalDots += a.dots; });
+
+  var recipients = result.awarded.map(function (a) { return mention_(a.userId); });
+  var who = joinNames_(recipients);
+  var perEach = result.awarded.length > 1 && allSame_(result.awarded)
+    ? result.awarded[0].dots : null;
+
+  var headline = mention_(req.giverId) + ' gave ' + who + ' ' +
+    (perEach ? dotRun_(perEach) + ' *' + perEach + ' ' + dotWord_(perEach) + ' each*'
+      : dotRun_(totalDots) + ' *' + totalDots + ' ' + dotWord_(totalDots) + '*');
+
+  lines.push(headline);
+  lines.push('> ' + escapeSlack_(truncate_(req.reason, 900)));
+
+  var blocks = [sectionBlock_(lines.join('\n'))];
+
+  var context = [];
+  if (req.value) context.push(req.value.emoji + ' *' + escapeSlack_(req.value.label) + '*');
+  result.awarded.forEach(function (a) {
+    context.push(escapeSlack_(a.name) + ': ' + a.receivedTotal + ' all-time');
+  });
+  if (result.streakExtended && num_(result.streak) >= 3) {
+    context.push(':fire: ' + result.streak + '-' + periodWord_() + ' giving streak');
+  }
+  blocks.push(contextBlock_(context.join('  ·  ')));
+
+  // Badge unlocks get their own celebratory block.
+  var badgeLines = [];
+  result.awarded.forEach(function (a) {
+    (a.badges || []).forEach(function (b) {
+      badgeLines.push(b.emoji + ' ' + mention_(a.userId) + ' unlocked *' + escapeSlack_(b.label) +
+        '* — ' + b.threshold + ' dots received.');
+    });
+  });
+  (result.giverBadges || []).forEach(function (b) {
+    badgeLines.push(b.emoji + ' ' + mention_(req.giverId) + ' unlocked *' + escapeSlack_(b.label) +
+      '* — ' + b.threshold + ' dots given.');
+  });
+  if (badgeLines.length) {
+    blocks.push(dividerBlock_());
+    blocks.push(sectionBlock_(badgeLines.join('\n')));
+  }
+
+  var fallback = stripMrkdwn_(headline) + ' — ' + truncate_(req.reason, 200);
+  return { text: fallback, blocks: blocks };
+}
+
+function allSame_(awarded) {
+  for (var i = 1; i < awarded.length; i++) if (awarded[i].dots !== awarded[0].dots) return false;
+  return true;
+}
+
+function joinNames_(arr) {
+  if (arr.length === 0) return '';
+  if (arr.length === 1) return arr[0];
+  if (arr.length === 2) return arr[0] + ' and ' + arr[1];
+  return arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+}
+
+function stripMrkdwn_(s) {
+  return String(s).replace(/\*/g, '').replace(/:[a-z0-9_+\-]+:/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The private confirmation the giver sees.
+ * @return {{text:string, blocks:Array}}
+ */
+function buildGiverReceipt_(result, req) {
+  var lines = [];
+
+  if (result.awarded.length) {
+    var parts = result.awarded.map(function (a) {
+      var s = a.dots + ' ' + dotWord_(a.dots) + ' → ' + mention_(a.userId);
+      if (a.dots < a.requested) s += ' _(trimmed from ' + a.requested + ')_';
+      return s;
+    });
+    lines.push('Sent: ' + parts.join(', '));
+  }
+
+  result.skipped.forEach(function (s) {
+    lines.push(':warning: ' + mention_(s.userId) + ' — ' + s.reason);
+  });
+
+  var word = periodWord_();
+  lines.push('You have *' + result.remaining + ' of ' + result.allowance + '* ' +
+    dotWord_(result.allowance) + ' left this ' + word +
+    (result.remaining === 0 ? '. Refills ' + periodResetText_() + '.' : '.'));
+
+  if (result.pool === 'manager') {
+    lines.push('_Drawn from the manager pool, so peer dots stay peer._');
+  }
+
+  return { text: stripMrkdwn_(lines.join(' ')), blocks: [sectionBlock_(lines.join('\n'))] };
+}
+
+/** The DM a recipient gets, so recognition lands even if they miss the channel. */
+function buildRecipientDm_(award, req, channelId, permalink) {
+  var lines = [];
+  lines.push(dotRun_(award.dots) + '  *' + mention_(req.giverId) + ' gave you ' +
+    award.dots + ' ' + dotWord_(award.dots) + '*');
+  lines.push('> ' + escapeSlack_(truncate_(req.reason, 900)));
+  var tail = [];
+  if (req.value) tail.push(req.value.emoji + ' ' + escapeSlack_(req.value.label));
+  tail.push(award.receivedTotal + ' dots all-time');
+  if (cfgBool('RAFFLE_ENABLED') && award.raffleEntriesTotal) {
+    tail.push(award.raffleEntriesTotal + ' raffle ' + (award.raffleEntriesTotal === 1 ? 'entry' : 'entries') + ' this month');
+  }
+  lines.push(tail.join('  ·  '));
+  if (permalink) lines.push('<' + permalink + '|See it in channel>');
+
+  var blocks = [sectionBlock_(lines.join('\n'))];
+  (award.badges || []).forEach(function (b) {
+    blocks.push(sectionBlock_(b.emoji + ' *New badge: ' + escapeSlack_(b.label) + '* — ' +
+      b.threshold + ' dots received.'));
+  });
+  return { text: stripMrkdwn_(lines[0]) + ' — ' + truncate_(req.reason, 150), blocks: blocks };
+}
+
+/** A person's balance card. */
+function buildBalanceCard_(bal, userId) {
+  var word = periodWord_();
+  var badges = badgesFor_(bal);
+  var next = nextBadge_(bal);
+
+  var fields = [
+    ['Left to give this ' + word, num_(bal.remaining) + ' of ' + num_(bal.allowance)],
+    ['Given all-time', String(num_(bal.given_total))],
+    ['Received this ' + word, String(num_(bal.received_this_period))],
+    ['Received all-time', String(num_(bal.received_total))]
+  ];
+
+  var blocks = [
+    sectionBlock_('*Your orange dots*  ' + dotRun_(num_(bal.remaining))),
+    fieldsBlock_(fields)
+  ];
+
+  var context = [];
+  if (num_(bal.remaining) === 0) {
+    context.push('Out of dots — refills ' + periodResetText_() + '.');
+  }
+  if (cfgBool('STREAKS_ENABLED') && num_(bal.streak) > 1) {
+    context.push(':fire: ' + num_(bal.streak) + '-' + word + ' giving streak');
+  }
+  if (cfgBool('RAFFLE_ENABLED')) {
+    var entries = myRaffleEntries_(userId, monthKey_());
+    context.push('Raffle: ' + entries + ' ' + (entries === 1 ? 'entry' : 'entries') + ' in the ' +
+      fmt_(now_(), 'MMMM') + ' drawing');
+  }
+  if (bal.pool === 'manager') context.push('Manager pool');
+  if (context.length) blocks.push(contextBlock_(context.join('  ·  ')));
+
+  if (badges.length) {
+    blocks.push(sectionBlock_('*Badges*\n' + badges.map(function (b) {
+      return b.emoji + ' ' + escapeSlack_(b.label);
+    }).join('   ')));
+  }
+  if (next) {
+    blocks.push(contextBlock_('Next up: ' + next.badge.emoji + ' *' + escapeSlack_(next.badge.label) +
+      '* — ' + next.need + ' more ' + dotWord_(next.need) + ' to go.'));
+  }
+
+  return { text: 'You have ' + num_(bal.remaining) + ' of ' + num_(bal.allowance) + ' dots left this ' + word + '.', blocks: blocks };
+}
+
+/** A leaderboard card. */
+function buildLeaderboardCard_(period, rows, viewerId) {
+  var title = period === 'month' ? 'This month' : period === 'all' ? 'All time' : 'This ' + periodWord_();
+  var blocks = [headerBlock_('🟠 Orange Dots — ' + title)];
+
+  if (!rows.length) {
+    blocks.push(sectionBlock_('_Nobody has picked up a dot yet ' +
+      (period === 'all' ? '' : 'this ' + (period === 'month' ? 'month' : periodWord_())) +
+      '. Someone has to go first._'));
+    return { text: 'Orange Dots leaderboard — nothing yet.', blocks: blocks };
+  }
+
+  var lines = rows.map(function (r, i) {
+    var you = r.user_id === viewerId ? '  ← you' : '';
+    return rankEmoji_(i) + ' *' + ordinal_(r.rank) + '*  ' + mention_(r.user_id) +
+      '  —  ' + r.dots + ' ' + dotWord_(r.dots) + you;
+  });
+  blocks.push(sectionBlock_(lines.join('\n')));
+
+  // If the viewer is not on the board, tell them where they stand anyway.
+  if (viewerId && !rows.some(function (r) { return r.user_id === viewerId; })) {
+    var full = leaderboard_(period, 500);
+    var mine = null;
+    for (var i = 0; i < full.length; i++) if (full[i].user_id === viewerId) { mine = full[i]; break; }
+    blocks.push(contextBlock_(mine
+      ? 'You: ' + ordinal_(mine.rank) + ' with ' + mine.dots + ' ' + dotWord_(mine.dots)
+      : 'You have not received a dot ' + (period === 'all' ? 'yet' : 'in this period') + ' — plenty of time.'));
+  }
+
+  return { text: 'Orange Dots leaderboard — ' + title, blocks: blocks };
+}
+
+/** The Monday digest. */
+function buildDigest_(periodLabel, rows, givers, stats, values) {
+  var blocks = [
+    headerBlock_('🟠 Orange Dots — ' + periodLabel),
+    sectionBlock_('*' + stats.dots + ' ' + dotWord_(stats.dots) + '* handed out by *' +
+      stats.givers + '* ' + (stats.givers === 1 ? 'person' : 'people') + ' to *' +
+      stats.receivers + '* ' + (stats.receivers === 1 ? 'person' : 'people') + '.')
+  ];
+
+  if (rows.length) {
+    blocks.push(sectionBlock_('*Most dots received*\n' + rows.slice(0, 5).map(function (r, i) {
+      return rankEmoji_(i) + ' ' + mention_(r.user_id) + ' — ' + r.dots;
+    }).join('\n')));
+  }
+  if (givers && givers.length) {
+    blocks.push(sectionBlock_('*Most generous*\n' + givers.slice(0, 3).map(function (r, i) {
+      return rankEmoji_(i) + ' ' + mention_(r.user_id) + ' — ' + r.dots + ' given';
+    }).join('\n')));
+  }
+  if (values && values.length && values[0].dots > 0) {
+    blocks.push(sectionBlock_('*What we recognized*\n' + values.filter(function (v) { return v.dots > 0; })
+      .map(function (v) {
+        return v.emoji + ' ' + escapeSlack_(v.label) + ' — ' + v.dots + ' (' + Math.round(v.share * 100) + '%)';
+      }).join('\n')));
+  }
+
+  blocks.push(dividerBlock_());
+  blocks.push(contextBlock_('Everyone\'s dots have refilled. `/dot @someone why` to spend them — ' +
+    'they expire at the end of the ' + periodWord_() + '.'));
+
+  return { text: 'Orange Dots — ' + periodLabel + ': ' + stats.dots + ' dots given.', blocks: blocks };
+}
+
+/** The monthly raffle announcement. */
+function buildRaffleAnnouncement_(period, winners, totalEntries, entrantCount) {
+  var prize = cfgStr('RAFFLE_PRIZE');
+  var blocks = [
+    headerBlock_('🎟️ Orange Dots raffle — ' + period),
+    sectionBlock_(winners.map(function (w) {
+      return ':tada: *' + mention_(w.user_id) + '* — ' + w.entries + ' ' +
+        (w.entries === 1 ? 'entry' : 'entries');
+    }).join('\n') + (prize ? '\n\nPrize: *' + escapeSlack_(prize) + '*' : ''))
+  ];
+  blocks.push(contextBlock_('Drawn from ' + totalEntries + ' entries across ' + entrantCount +
+    ' people. Every dot you receive is one entry — the drum resets today.'));
+  return {
+    text: 'Orange Dots raffle ' + period + ': ' + winners.map(function (w) { return w.name; }).join(', '),
+    blocks: blocks
+  };
+}
+
+/** The help card. */
+function buildHelpCard_(userId) {
+  var word = periodWord_();
+  var allowance = allowanceFor_(userId);
+  var cap = cfgNum('MAX_PER_RECIPIENT_PER_PERIOD');
+  var trigger = ':' + cfgStr('EMOJI_TRIGGER') + ':';
+
+  var lines = [];
+  lines.push('*Giving a dot*');
+  lines.push('`/dot @someone what they did` — the reason is the point; the dot is the receipt.');
+  lines.push('`/dot @sam @dana x2 covered the whole weekend` — several people, more than one each.');
+  if (cfgBool('ALLOW_EMOJI_GIVING')) {
+    lines.push('Or just type it in any channel: `@sam ' + trigger + ' saved me two hours today`.');
+  }
+
+  if (cfgBool('VALUES_ENABLED')) {
+    lines.push('');
+    lines.push('*Tag the value* (optional' + (cfgBool('VALUE_REQUIRED') ? ' — currently required' : '') + ')');
+    lines.push(valueList().map(function (v) {
+      return v.emoji + ' `#' + v.tag + '` ' + escapeSlack_(v.label);
+    }).join('\n'));
+  }
+
+  lines.push('');
+  lines.push('*The rules*');
+  lines.push('• *' + allowance + ' ' + dotWord_(allowance) + ' per ' + word + '*, refilling ' + periodResetText_() + '. Unused dots ' +
+    (cfgBool('CARRY_OVER_UNUSED') ? 'roll forward.' : 'expire — spend them.'));
+  if (cap > 0) lines.push('• At most *' + cap + '* to the same person per ' + word + '.');
+  if (!cfgBool('ALLOW_SELF_KUDOS')) lines.push('• No dots for yourself.');
+  lines.push('• Reasons are public and permanent. Write something they would want to read back.');
+
+  lines.push('');
+  lines.push('*Looking things up*');
+  lines.push('`/dots` — your balance, badges and raffle entries');
+  lines.push('`/dots leaderboard` · `/dots month` · `/dots all` — the boards');
+  lines.push('`/dots given` — who has been most generous');
+  lines.push('`/dots @someone` — someone else\'s dots');
+
+  if (cfgBool('RAFFLE_ENABLED')) {
+    lines.push('');
+    lines.push('*Rewards*');
+    lines.push('Badges unlock automatically at ' + cfgList('BADGE_THRESHOLDS').join(', ') + ' dots received.');
+    lines.push('Every dot you receive is one entry in the monthly raffle' +
+      (cfgStr('RAFFLE_PRIZE') ? ' for *' + escapeSlack_(cfgStr('RAFFLE_PRIZE')) + '*' : '') + '.');
+  }
+
+  return { text: 'Orange Dots help', blocks: [headerBlock_('🟠 Orange Dots'), sectionBlock_(lines.join('\n'))] };
+}
