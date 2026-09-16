@@ -171,7 +171,9 @@ function selfTest() {
         'or the bot cannot list it yet. Put the channel ID in ANNOUNCE_CHANNEL instead of the name — ' +
         'in Slack, open the channel, click its name, and copy the ID at the bottom of the About tab.');
     } else {
-      var probe = slackApi_('conversations.info', { channel: channel }, true);
+      // conversations.info is a GET-family method: Slack answers a JSON POST
+      // with invalid_arguments, which reads like a bad channel ID and is not.
+      var probe = slackApiGet_('conversations.info', { channel: channel }, true);
       if (!probe.ok) {
         notes.push('Could not read ' + cfgStr('ANNOUNCE_CHANNEL') + ' (' + probe.error +
           '). Invite the bot with /invite @OrangeDots.');
