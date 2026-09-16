@@ -12,6 +12,24 @@
 var __reqStarted = 0;
 
 /**
+ * Milliseconds spent on the current request so far. Returns 0 when nothing has
+ * set __reqStarted (a trigger run, a function run from the editor, a test).
+ */
+function elapsedMs_() {
+  return __reqStarted ? (new Date().getTime() - __reqStarted) : 0;
+}
+
+/**
+ * True when so much of Slack's three-second budget is gone that the response
+ * is likely to be thrown away. Anything the team must see has to be posted
+ * with chat.postMessage instead of returned.
+ */
+function responseLikelyTooLate_() {
+  var used = elapsedMs_();
+  return used > 0 && used > num_(cfgStr('RESPONSE_DEADLINE_MS') || 2400);
+}
+
+/**
  * Every inbound Slack request lands here: slash commands, interactivity
  * payloads and Events API callbacks all arrive as POSTs to the same URL.
  */
