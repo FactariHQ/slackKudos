@@ -76,7 +76,7 @@ Either paste each file from `src/` into the editor (filenames matter — the num
 ```bash
 npm install -g @google/clasp
 clasp login
-clasp create --type standalone --title "Orange Dots" --rootDir ./src
+clasp create-script --type standalone --title "Orange Dots" --rootDir ./src
 clasp push
 ```
 
