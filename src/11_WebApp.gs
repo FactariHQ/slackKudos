@@ -5,11 +5,19 @@
  */
 
 /**
+ * When the current request started, in epoch ms. Slack discards a slash command
+ * response after three seconds, so the give path checks this before deciding
+ * whether the announcement can safely ride back on the HTTP response.
+ */
+var __reqStarted = 0;
+
+/**
  * Every inbound Slack request lands here: slash commands, interactivity
  * payloads and Events API callbacks all arrive as POSTs to the same URL.
  */
 function doPost(e) {
   var started = new Date().getTime();
+  __reqStarted = started;
   try {
     if (!e) return textOut_('no request');
 
