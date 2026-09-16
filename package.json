@@ -1,0 +1,12 @@
+{
+  "name": "orange-dots",
+  "version": "1.0.0",
+  "description": "Peer recognition for Slack, backed by a Google Sheet. Scarce orange dots, leaderboards, badges and a monthly raffle.",
+  "private": true,
+  "scripts": {
+    "test": "node test/run.js",
+    "push": "clasp push",
+    "deploy": "clasp deploy"
+  },
+  "license": "UNLICENSED"
+}
