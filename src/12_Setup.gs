@@ -129,7 +129,7 @@ function showRequestUrl() {
   }
   // Run from the editor, getUrl() returns the /dev HEAD url, which only the
   // signed-in owner can open. Slack is anonymous, so it needs /exec.
-  url = url.replace(/\/dev$/, '/exec');
+  url = String(url).replace(/\/dev$/, '/exec');
   var full = url + '?k=' + cfgStr('URL_SECRET');
   console.log('Request URL for all three Slack fields:\n\n' + full +
     '\n\nLeaderboard page (safe to share internally):\n\n' + full + '&period=period');
@@ -163,6 +163,13 @@ function selfTest() {
     var channel = resolveChannel_(cfgStr('ANNOUNCE_CHANNEL'));
     if (!channel) {
       problems.push('Cannot resolve ANNOUNCE_CHANNEL (' + cfgStr('ANNOUNCE_CHANNEL') + ').');
+    } else if (channel.charAt(0) === '#') {
+      // resolveChannel_ fell back to the raw name, so conversations.list never
+      // matched it. Asking conversations.info about "#name" returns the useless
+      // error invalid_arguments, so say the useful thing instead.
+      problems.push('Could not turn ' + channel + ' into a channel ID. Either the channel does not exist, ' +
+        'or the bot cannot list it yet. Put the channel ID in ANNOUNCE_CHANNEL instead of the name — ' +
+        'in Slack, open the channel, click its name, and copy the ID at the bottom of the About tab.');
     } else {
       var probe = slackApi_('conversations.info', { channel: channel }, true);
       if (!probe.ok) {
@@ -191,8 +198,15 @@ function selfTest() {
   else notes.push('Daily job is scheduled.');
 
   try {
-    var url = ScriptApp.getService().getUrl().replace(/\/dev$/, '/exec');
-    notes.push('Web app URL: ' + url + '?k=' + cfgStr('URL_SECRET'));
+    // getUrl() returns null when the editor has no HEAD deployment, so this
+    // must not be chained onto blindly — it used to print "null?k=<secret>".
+    var url = ScriptApp.getService().getUrl();
+    if (url) {
+      notes.push('Web app URL: ' + String(url).replace(/\/dev$/, '/exec') + '?k=' + cfgStr('URL_SECRET'));
+    } else {
+      notes.push('Apps Script did not report a web app URL. That is normal when the deployment was ' +
+        'made from Deploy → New deployment; copy the /exec URL from Deploy → Manage deployments.');
+    }
   } catch (e) {
     notes.push('No deployment URL yet — deploy the web app.');
   }
