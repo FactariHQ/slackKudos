@@ -127,6 +127,9 @@ function showRequestUrl() {
     console.log(msg);
     return msg;
   }
+  // Run from the editor, getUrl() returns the /dev HEAD url, which only the
+  // signed-in owner can open. Slack is anonymous, so it needs /exec.
+  url = url.replace(/\/dev$/, '/exec');
   var full = url + '?k=' + cfgStr('URL_SECRET');
   console.log('Request URL for all three Slack fields:\n\n' + full +
     '\n\nLeaderboard page (safe to share internally):\n\n' + full + '&period=period');
@@ -188,7 +191,7 @@ function selfTest() {
   else notes.push('Daily job is scheduled.');
 
   try {
-    var url = ScriptApp.getService().getUrl();
+    var url = ScriptApp.getService().getUrl().replace(/\/dev$/, '/exec');
     notes.push('Web app URL: ' + url + '?k=' + cfgStr('URL_SECRET'));
   } catch (e) {
     notes.push('No deployment URL yet — deploy the web app.');
