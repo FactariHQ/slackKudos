@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orange Dots</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel-2:#1c232d; --line:#262d38;
+    --ink:#e8ecf2; --ink-dim:#9aa4b2; --ink-faint:#6b7684;
+    --orange:#ff8a1f; --orange-soft:rgba(255,138,31,.14);
+    --gold:#e8c14a; --silver:#c2cad6; --bronze:#cf9264;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f6f7f9; --panel:#ffffff; --panel-2:#f1f3f6; --line:#e3e7ec;
+      --ink:#151a21; --ink-dim:#5a6572; --ink-faint:#8b95a1;
+      --orange-soft:rgba(255,138,31,.16);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:28px 16px 64px}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+  h1{font-size:26px;margin:0;letter-spacing:-.01em}
+  h1 .dot{color:var(--orange)}
+  .updated{color:var(--ink-faint);font-size:13px}
+  .tabs{display:flex;gap:6px;margin:18px 0 22px;flex-wrap:wrap}
+  .tab{
+    display:inline-block;padding:7px 14px;border-radius:999px;text-decoration:none;
+    color:var(--ink-dim);background:var(--panel);border:1px solid var(--line);font-size:14px;
+  }
+  .tab.active{background:var(--orange);border-color:var(--orange);color:#1a1205;font-weight:600}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:24px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .stat b{display:block;font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
+  .stat span{color:var(--ink-faint);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .grid{display:grid;grid-template-columns:1.35fr .9fr;gap:16px;align-items:start}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 8px;margin-bottom:16px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);margin:0 0 12px}
+  ol.board{list-style:none;margin:0;padding:0}
+  ol.board li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+  ol.board li:last-child{border-bottom:0}
+  .rank{width:30px;flex:none;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink-faint);font-size:14px}
+  .rank.m1{color:var(--gold);font-size:17px}
+  .rank.m2{color:var(--silver);font-size:17px}
+  .rank.m3{color:var(--bronze);font-size:17px}
+  .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .count{font-variant-numeric:tabular-nums;font-weight:650;color:var(--orange);flex:none}
+  .bar{height:5px;border-radius:3px;background:var(--orange-soft);margin-top:5px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--orange);border-radius:3px}
+  .feed div{padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+  .feed div:last-child{border-bottom:0}
+  .feed .meta{color:var(--ink-faint);font-size:12.5px;margin-bottom:3px}
+  .feed .meta b{color:var(--ink-dim);font-weight:600}
+  .vrow{display:flex;align-items:center;gap:10px;padding:7px 0}
+  .vrow .vname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+  .vrow .vpct{color:var(--ink-faint);font-size:13px;font-variant-numeric:tabular-nums;flex:none}
+  .vbar{height:8px;border-radius:4px;background:var(--panel-2);width:110px;flex:none;overflow:hidden}
+  .vbar i{display:block;height:100%;background:var(--orange)}
+  .empty{color:var(--ink-faint);padding:6px 0 14px;font-size:14.5px}
+  footer{margin-top:28px;color:var(--ink-faint);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="dot">🟠</span> Orange Dots</h1>
+    <div class="updated">Updated <?= data.updated ?></div>
+  </header>
+
+  <nav class="tabs">
+    <a class="tab <?= data.period === 'period' ? 'active' : '' ?>" href="?k=<?= data.key ?>&period=period">This <?= data.periodWord ?></a>
+    <a class="tab <?= data.period === 'month' ? 'active' : '' ?>" href="?k=<?= data.key ?>&period=month">This month</a>
+    <a class="tab <?= data.period === 'all' ? 'active' : '' ?>" href="?k=<?= data.key ?>&period=all">All time</a>
+  </nav>
+
+  <div class="stats">
+    <div class="stat"><b><?= data.stats.dotsAllTime ?></b><span>Dots all time</span></div>
+    <div class="stat"><b><?= data.stats.dotsThisPeriod ?></b><span>This <?= data.periodWord ?></span></div>
+    <div class="stat"><b><?= data.stats.dotsThisMonth ?></b><span>This month</span></div>
+    <div class="stat"><b><?= data.stats.participationThisPeriod ?>/<?= data.stats.people ?></b><span>Gave this <?= data.periodWord ?></span></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Most dots received</h2>
+        <? if (data.rows.length) { ?>
+          <? var top = data.rows[0].dots || 1; ?>
+          <ol class="board">
+          <? for (var i = 0; i < data.rows.length; i++) { var r = data.rows[i]; ?>
+            <li>
+              <div class="rank <?= i === 0 ? 'm1' : i === 1 ? 'm2' : i === 2 ? 'm3' : '' ?>">
+                <?= i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : r.rank ?>
+              </div>
+              <div class="who">
+                <?= r.name ?>
+                <div class="bar"><i style="width:<?= Math.max(4, Math.round(r.dots / top * 100)) ?>%"></i></div>
+              </div>
+              <div class="count"><?= r.dots ?></div>
+            </li>
+          <? } ?>
+          </ol>
+        <? } else { ?>
+          <p class="empty">Nobody has picked up a dot yet. Someone has to go first.</p>
+        <? } ?>
+      </div>
+
+      <div class="card">
+        <h2>Lately</h2>
+        <div class="feed">
+        <? if (data.feed.length) { ?>
+          <? for (var f = 0; f < data.feed.length; f++) { var e = data.feed[f]; ?>
+            <div>
+              <div class="meta"><b><?= e.giver_name ?></b> → <b><?= e.receiver_name ?></b> · <?= e.dots ?> <?= e.dots === 1 ? 'dot' : 'dots' ?></div>
+              <?= e.reason ?>
+            </div>
+          <? } ?>
+        <? } else { ?>
+          <p class="empty">No dots yet.</p>
+        <? } ?>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Most generous</h2>
+        <? if (data.givers.length) { ?>
+          <ol class="board">
+          <? for (var g = 0; g < data.givers.length; g++) { var gv = data.givers[g]; ?>
+            <li>
+              <div class="rank <?= g === 0 ? 'm1' : g === 1 ? 'm2' : g === 2 ? 'm3' : '' ?>"><?= gv.rank ?></div>
+              <div class="who"><?= gv.name ?></div>
+              <div class="count"><?= gv.dots ?></div>
+            </li>
+          <? } ?>
+          </ol>
+        <? } else { ?>
+          <p class="empty">No dots given yet.</p>
+        <? } ?>
+      </div>
+
+      <? if (data.valuesEnabled) { ?>
+      <div class="card">
+        <h2>What we recognized</h2>
+        <? var anyValue = false; for (var v = 0; v < data.values.length; v++) { if (data.values[v].dots > 0) anyValue = true; } ?>
+        <? if (anyValue) { ?>
+          <? for (var v2 = 0; v2 < data.values.length; v2++) { var vv = data.values[v2]; if (!vv.dots) continue; ?>
+            <div class="vrow">
+              <div class="vname"><?= vv.label ?></div>
+              <div class="vbar"><i style="width:<?= Math.round(vv.share * 100) ?>%"></i></div>
+              <div class="vpct"><?= Math.round(vv.share * 100) ?>%</div>
+            </div>
+          <? } ?>
+        <? } else { ?>
+          <p class="empty">No value tags used yet — add <code>#tag</code> to a dot.</p>
+        <? } ?>
+      </div>
+      <? } ?>
+
+      <? if (data.raffleEnabled) { ?>
+      <div class="card">
+        <h2><?= data.monthName ?> raffle</h2>
+        <p class="empty" style="color:var(--ink-dim)">
+          Every dot received is one entry, drawn on the 1st.
+          <? if (data.rafflePrize) { ?><br><strong style="color:var(--ink)"><?= data.rafflePrize ?></strong><? } ?>
+        </p>
+      </div>
+      <? } ?>
+    </div>
+  </div>
+
+  <footer>Orange Dots · refreshes every 5 minutes</footer>
+</div>
+<script>
+  setTimeout(function(){ location.reload(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
