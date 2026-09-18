@@ -117,6 +117,16 @@ Then **Install to Workspace**.
 
 > Slack verifies the events Request URL immediately by sending a challenge. If it fails, the web app is not deployed with "Anyone" access, or the `?k=` secret is wrong or missing.
 
+### 4b. Add the emoji
+
+`assets/jackson-emoji.png` and `assets/jackson-wag.gif` are the two workspace emoji this
+runs on: **`:jackson:`**, the trigger, and **`:jackson-wag:`**, a 1.6-second loop for
+threads. Add them at **Settings → Customize → Emoji → Add Custom Emoji**.
+
+Slack's limits are 128×128 and 128KB; both files are inside them. Name yours whatever you
+like and set `EMOJI_TRIGGER` to match — message runs, badges and the give-by-reaction path
+all read that one key, so the whole app follows.
+
 ### 5. Wire up the credentials
 
 Open the spreadsheet's **Config** tab and fill in:
