@@ -1,8 +1,8 @@
-# Orange Dots
+# Tail Wag
 
 Peer recognition for Slack, backed by a Google Sheet you own.
 
-Everyone gets a small, fixed number of **orange dots** to give away each period. Because the supply is scarce and refills on a clock, a dot means something — nobody can spam them, and nobody can hoard them either. Every dot carries a public reason, builds a leaderboard, unlocks badges at milestones, and earns an entry in the monthly raffle.
+Everyone gets a small, fixed number of **wags** to give away each period. Because the supply is scarce and refills on a clock, a wag means something — nobody can spam them, and nobody can hoard them either. Every wag carries a public reason, builds a leaderboard, unlocks badges at milestones, and earns an entry in the monthly raffle.
 
 Built for ACT, and configured out of the box with ACT's five clinical values as the value tags.
 
@@ -10,56 +10,56 @@ Built for ACT, and configured out of the box with ACT's five clinical values as 
 
 ## What it does
 
-**Three ways to give a dot**
+**Three ways to give a wag**
 
 ```
-/dot @sam covered two sessions at no notice on Tuesday
+/wag @sam covered two sessions at no notice on Tuesday
 ```
 
 ```
-@sam 🟠 saved me two hours on the Denver auth today
+@sam :jackson: saved me two hours on the Denver auth today
 ```
 Typed in any channel the bot is in. No slash command needed — the way HeyTaco works.
 
-React with 🟠 on someone's message. Their message becomes the reason.
+React with :jackson: on someone's message. Their message becomes the reason.
 
 **Extras on the give syntax**
 
 | You type | What happens |
 |---|---|
-| `/dot @sam @dana covered the weekend between them` | One dot each |
-| `/dot @sam x2 carried the whole week` | Two dots to Sam |
-| `/dot @sam 🟠🟠🟠 three sessions covered` | Three dots |
-| `/dot @sam #real-world made it work at the daycare` | Tagged to a company value |
+| `/wag @sam @dana covered the weekend between them` | One wag each |
+| `/wag @sam x2 carried the whole week` | Two wags to Sam |
+| `/wag @sam :jackson::jackson::jackson: three sessions covered` | Three wags |
+| `/wag @sam #real-world made it work at the daycare` | Tagged to a company value |
 
 **Looking things up**
 
 | Command | Shows |
 |---|---|
-| `/dots` | Your balance, badges, streak, raffle entries, with leaderboard buttons |
-| `/dots leaderboard` | Top receivers this period |
-| `/dots month` · `/dots all` | Monthly and all-time boards |
-| `/dots given` | Most generous people |
-| `/dots @sam` | Someone else's standing and recent recognition |
-| `/dots feed` | The recent reasons |
-| `/dots raffle` | Your odds this month |
-| `/dots help` | The rules, rendered from the live config |
+| `/wags` | Your balance, badges, streak, raffle entries, with leaderboard buttons |
+| `/wags leaderboard` | Top receivers this period |
+| `/wags month` · `/wags all` | Monthly and all-time boards |
+| `/wags given` | Most generous people |
+| `/wags @sam` | Someone else's standing and recent recognition |
+| `/wags feed` | The recent reasons |
+| `/wags raffle` | Your odds this month |
+| `/wags help` | The rules, rendered from the live config |
 
 There is also an **App Home tab** — balance, badges with a progress bar, both leaderboards and the recent feed, no typing required — and a **web leaderboard page** for an office screen or an all-hands slide.
 
 **Rules enforced**
 
-- A fixed allowance per person per period, refilling automatically. Unused dots expire by default.
-- No dots to yourself, to bots, or to deactivated accounts.
+- A fixed allowance per person per period, refilling automatically. Unused wags expire by default.
+- No wags to yourself, to bots, or to deactivated accounts.
 - A per-recipient cap, so two friends cannot farm each other.
 - A minimum reason length, with the error message showing a good example.
 - Managers draw from a separate pool, so manager praise doesn't crowd out peer praise.
 
 **Rewards**
 
-- **Badges** unlock automatically on lifetime dots received (10 / 25 / 50 / 100 / 250 by default) and on dots *given*, so generosity is recognized too.
-- **Raffle**: every dot received is one entry in that month's drawing, drawn weighted on the 1st and announced in the channel. An occasional contributor still has a real chance; a standout has a proportionally better one.
-- **Streaks** count consecutive periods in which you gave at least one dot.
+- **Badges** unlock automatically on lifetime wags received (10 / 25 / 50 / 100 / 250 by default) and on wags *given*, so generosity is recognized too.
+- **Raffle**: every wag received is one entry in that month's drawing, drawn weighted on the 1st and announced in the channel. An occasional contributor still has a real chance; a standout has a proportionally better one.
+- **Streaks** count consecutive periods in which you gave at least one wag.
 
 ---
 
@@ -69,14 +69,14 @@ Roughly 20 minutes, most of it clicking around in Slack.
 
 ### 1. Create the Apps Script project
 
-Go to [script.google.com](https://script.google.com) → **New project**. Name it `Orange Dots`.
+Go to [script.google.com](https://script.google.com) → **New project**. Name it `Tail Wag`.
 
 Either paste each file from `src/` into the editor (filenames matter — the number prefixes control load order), or use `clasp`:
 
 ```bash
 npm install -g @google/clasp
 clasp login
-clasp create-script --type standalone --title "Orange Dots" --rootDir ./src
+clasp create-script --type standalone --title "Tail Wag" --rootDir ./src
 clasp push
 ```
 
@@ -88,7 +88,7 @@ In the Apps Script editor, run **`setupSpreadsheet`**. Approve the permissions p
 
 It creates the spreadsheet with all seven tabs, writes every config key with an explanation next to it, and generates a URL secret. The execution log prints the spreadsheet link and the secret — keep both.
 
-> If you already have the Orange Dots sheet, put its ID in **Project Settings → Script Properties** as `OD_SPREADSHEET_ID` before running setup.
+> If you already have the Tail Wag sheet, put its ID in **Project Settings → Script Properties** as `OD_SPREADSHEET_ID` before running setup.
 
 ### 3. Deploy the web app
 
@@ -131,7 +131,7 @@ Open the spreadsheet's **Config** tab and fill in:
 Invite the bot where it needs to be:
 
 ```
-/invite @Orange Dots
+/invite @Tail Wag
 ```
 
 In `#kudos`, and in any channel where people should be able to give by typing or reacting.
@@ -145,10 +145,10 @@ Run **`installTriggers`**, then **`selfTest`**.
 ### 7. Take it for a spin before anyone sees it
 
 ```
-/dot @yourself testing    ← refused, as designed
-/dot @a-colleague thanks for helping with the thing this morning
-/dots
-/dot-admin status
+/wag @yourself testing    ← refused, as designed
+/wag @a-colleague thanks for helping with the thing this morning
+/wags
+/wag-admin status
 ```
 
 Run **`seedDemoData`** to populate the boards with five fictional people so you can see what a busy week looks like, then **`clearDemoData`** to wipe every trace.
@@ -157,21 +157,21 @@ Run **`seedDemoData`** to populate the boards with five fictional people so you 
 
 ## Configuration
 
-Everything lives on the **Config** tab, each key with a plain-English note beside it. Changes take effect within five minutes (config is cached), or immediately after any `/dot-admin set`.
+Everything lives on the **Config** tab, each key with a plain-English note beside it. Changes take effect within five minutes (config is cached), or immediately after any `/wag-admin set`.
 
 ### The dials that matter most
 
 | Key | Default | Notes |
 |---|---|---|
-| `ALLOWANCE_PERIOD` | `week` | `week` or `day`. **HeyTaco refills daily** — set this to `day` to match that rhythm exactly. Switching is safe at any time; balances roll over to the new cadence on the next dot. |
-| `ALLOWANCE_PEER` | `5` | Dots per person per period |
+| `ALLOWANCE_PERIOD` | `week` | `week` or `day`. **HeyTaco refills daily** — set this to `day` to match that rhythm exactly. Switching is safe at any time; balances roll over to the new cadence on the next wag. |
+| `ALLOWANCE_PEER` | `5` | Wags per person per period |
 | `ALLOWANCE_MANAGER` | `5` | The separate manager pool |
 | `MAX_PER_RECIPIENT_PER_PERIOD` | `2` | `0` removes the cap |
-| `CARRY_OVER_UNUSED` | `FALSE` | `FALSE` makes dots expire, which is what keeps people spending them |
+| `CARRY_OVER_UNUSED` | `FALSE` | `FALSE` makes wags expire, which is what keeps people spending them |
 | `MIN_REASON_CHARS` | `12` | |
 | `ANNOUNCE_IN_SOURCE_CHANNEL` | `TRUE` | `FALSE` routes every announcement to `ANNOUNCE_CHANNEL` instead |
 | `DM_RECIPIENT` | `TRUE` | So recognition lands even if they miss the channel |
-| `EMOJI_TRIGGER` | `large_orange_circle` | Change the emoji and the whole app follows |
+| `EMOJI_TRIGGER` | `jackson` | The custom Slack emoji of Jackson. Change it and the whole app follows — message runs, badges and the trigger all read this key |
 | `VALUE_REQUIRED` | `FALSE` | Turn on once the value-tagging habit sticks |
 | `PAUSED` | `FALSE` | Read-only mode: boards still work, giving is refused |
 
@@ -195,18 +195,18 @@ Tags resolve on any unambiguous prefix, so `#collab` and `#real` both work. Edit
 
 | Command | What it does |
 |---|---|
-| `/dot-admin status` | Totals, participation, and the live config at a glance |
-| `/dot-admin grant @user 3 reason` | Award dots from nowhere — doesn't touch anyone's allowance |
-| `/dot-admin topup @user 5` | Add to someone's remaining allowance |
-| `/dot-admin set KEY value` | Change a setting without opening the sheet |
-| `/dot-admin keys` | List the settable keys |
-| `/dot-admin reset confirm` | Refill everyone immediately |
-| `/dot-admin draw [2026-08]` | Run a raffle drawing on demand |
-| `/dot-admin digest` | Post the digest now |
-| `/dot-admin pause` / `resume` | |
-| `/dot-admin sync` | Pull the member list from Slack onto the roster |
-| `/dot-admin rebuild confirm` | Recompute every balance from the ledger |
-| `/dot-admin whoami` | Your ID, pool and workspace |
+| `/wag-admin status` | Totals, participation, and the live config at a glance |
+| `/wag-admin grant @user 3 reason` | Award wags from nowhere — doesn't touch anyone's allowance |
+| `/wag-admin topup @user 5` | Add to someone's remaining allowance |
+| `/wag-admin set KEY value` | Change a setting without opening the sheet |
+| `/wag-admin keys` | List the settable keys |
+| `/wag-admin reset confirm` | Refill everyone immediately |
+| `/wag-admin draw [2026-08]` | Run a raffle drawing on demand |
+| `/wag-admin digest` | Post the digest now |
+| `/wag-admin pause` / `resume` | |
+| `/wag-admin sync` | Pull the member list from Slack onto the roster |
+| `/wag-admin rebuild confirm` | Recompute every balance from the ledger |
+| `/wag-admin whoami` | Your ID, pool and workspace |
 
 Secrets cannot be set from Slack — `set SLACK_BOT_TOKEN` is refused on purpose. Destructive commands require the word `confirm`.
 
@@ -226,11 +226,11 @@ Seven tabs, all readable by a human:
 | **Raffle** | Entries and winners by month |
 | **Events** | Structured log, pruned to the last 5,000 rows |
 
-**The Ledger is authoritative.** Balances is a denormalized cache of it, maintained for speed. If a number ever looks wrong — someone edited a cell, a run was interrupted — `/dot-admin rebuild confirm` recomputes every balance from the ledger and the discrepancy disappears. That command is tested, including the subtle case that an admin grant must not count against the granting admin's own generosity total.
+**The Ledger is authoritative.** Balances is a denormalized cache of it, maintained for speed. If a number ever looks wrong — someone edited a cell, a run was interrupted — `/wag-admin rebuild confirm` recomputes every balance from the ledger and the discrepancy disappears. That command is tested, including the subtle case that an admin grant must not count against the granting admin's own generosity total.
 
 ### Why the hot path never reads the ledger
 
-Slack allows three seconds for a slash command, and Apps Script runs synchronously with no way to reply early. So everything a `/dot` needs — remaining allowance, dots already sent to this person this period, the recipient's running totals and badge state — lives on that person's single Balances row. A give is: a cached config read, two single-row reads, two single-row writes, one append, and one parallel batch of Slack calls. The public announcement is returned as the HTTP response itself rather than as a separate `chat.postMessage`, which saves a whole round trip on every dot. Leaderboards read the Balances tab, never the ledger. The ledger is scanned only by the digest, the feed and the rebuild, none of which are on a clock.
+Slack allows three seconds for a slash command, and Apps Script runs synchronously with no way to reply early. So everything a `/wag` needs — remaining allowance, wags already sent to this person this period, the recipient's running totals and badge state — lives on that person's single Balances row. A give is: a cached config read, two single-row reads, two single-row writes, one append, and one parallel batch of Slack calls. The public announcement is returned as the HTTP response itself rather than as a separate `chat.postMessage`, which saves a whole round trip on every wag. Leaderboards read the Balances tab, never the ledger. The ledger is scanned only by the digest, the feed and the rebuild, none of which are on a clock.
 
 ---
 
@@ -243,7 +243,7 @@ Slack allows three seconds for a slash command, and Apps Script runs synchronous
 3. **The legacy verification token**, checked as a second factor when `SLACK_VERIFICATION_TOKEN` is set.
 4. **Real HMAC verification**, implemented and tested, which runs automatically if you ever put a proxy in front that copies the signature and timestamp into form fields (`slack_signature`, `slack_timestamp`) — or if you move the app to a host that can read headers.
 
-For an internal recognition app this is a solid bar: an attacker needs the unguessable deployment URL *and* your workspace ID to forge a dot, and every dot is attributed and visible in a public channel. If you later want header-based verification, `verifySlackSignature_` is ready and `SLACK_SIGNING_SECRET` is the only config to fill in.
+For an internal recognition app this is a solid bar: an attacker needs the unguessable deployment URL *and* your workspace ID to forge a wag, and every wag is attributed and visible in a public channel. If you later want header-based verification, `verifySlackSignature_` is ready and `SLACK_SIGNING_SECRET` is the only config to fill in.
 
 **Rotating the secret:** change `URL_SECRET` on the Config tab, then update the four Request URLs in the Slack app. Do it in that order and the window of exposure is the time between the two steps.
 
@@ -259,7 +259,7 @@ node test/run.js
 
 128 tests, no network and no Google account required. `test/harness.js` recreates enough of the Apps Script runtime — `SpreadsheetApp` with real 1-indexed range semantics, `Utilities.formatDate` with genuine timezone handling, `CacheService`, `PropertiesService`, `LockService`, `UrlFetchApp`, `ScriptApp` — to load the actual `.gs` files into a Node VM. The tests exercise the real code, not a reimplementation of it, and the fake spreadsheet is a real 2D array so off-by-one bugs in the store layer surface exactly as they would in production.
 
-The fake sheet also lies the way Sheets lies: it coerces a string like `"2026-09"` into a Date, turns a leading `=` into a live formula, and strips the apostrophe that forces a cell to text. That matters — a version of this app that passed a naive test suite would have reported zero monthly dots and an empty raffle forever, because Sheets silently reinterprets the period keys.
+The fake sheet also lies the way Sheets lies: it coerces a string like `"2026-09"` into a Date, turns a leading `=` into a live formula, and strips the apostrophe that forces a cell to text. That matters — a version of this app that passed a naive test suite would have reported zero monthly wags and an empty raffle forever, because Sheets silently reinterprets the period keys.
 
 Covered: period-key boundaries including the Monday turnover in local time and the New Year straddle; every branch of the give parser; allowance and cap enforcement including partial gives; badge and streak logic; weighted raffle selection with a seeded RNG; emoji and reaction giving including Slack's retry behavior; all four authentication paths including real HMAC verification against Node's crypto; the admin commands; and the failure modes — a held lock, a dead Slack API, a missing token, a wiped cache, a garbage request body.
 
@@ -274,17 +274,17 @@ The final suite, `Regressions — found in adversarial review`, pins eighteen de
 - **Slack retries** any event it doesn't hear back from within three seconds. Every event path claims the event by message timestamp *before* doing work, so a slow run produces a dropped duplicate rather than a double award.
 - **One daily trigger** at `DIGEST_HOUR` handles everything scheduled — Apps Script has no monthly trigger, so the job works out for itself what today is.
 - **Allowances roll forward lazily**, on read, not only on the trigger. A missed trigger can never hand anyone a stale allowance.
-- **Apps Script quotas**: 20,000 UrlFetch calls and 90 minutes of runtime per day on a Workspace account. A dot costs roughly 2–5 fetches. A team of 200 people giving 5 dots a week each uses well under 1% of that.
+- **Apps Script quotas**: 20,000 UrlFetch calls and 90 minutes of runtime per day on a Workspace account. A wag costs roughly 2–5 fetches. A team of 200 people giving 5 wags a week each uses well under 1% of that.
 
 ## Rolling it out
 
 Recognition apps die when nothing happens in the first week. What works:
 
 1. Start with `VALUE_REQUIRED` off and `MIN_REASON_CHARS` at 12. Add friction later, not on day one.
-2. Seed it. Give ten dots yourself, in public, with reasons long enough to be worth reading. People copy the format they see first.
-3. Say what a dot is *for* in the announcement — "you noticed something someone did that made your job easier" beats "recognize your colleagues".
+2. Seed it. Give ten wags yourself, in public, with reasons long enough to be worth reading. People copy the format they see first.
+3. Say what a wag is *for* in the announcement — "you noticed something someone did that made your job easier" beats "recognize your colleagues".
 4. Name the prize before the first drawing. An abstract raffle motivates nobody.
-5. Read the value breakdown in the digest after a month. If one value gets 70% of the dots and another gets none, that is information about the business, not about the app.
+5. Read the value breakdown in the digest after a month. If one value gets 70% of the wags and another gets none, that is information about the business, not about the app.
 
 ---
 
@@ -300,7 +300,7 @@ src/
   04_Security.gs       Request authentication and HMAC verification
   05_Kudos.gs          Give parsing, validation, the transaction, leaderboards
   06_Messages.gs       Everything the app says
-  07_Commands.gs       /dot, /dots, /dot-admin
+  07_Commands.gs       /wag, /wags, /wag-admin
   08_Events.gs         Emoji giving, reaction giving, interactivity
   09_Views.gs          The App Home tab
   10_Triggers.gs       Digest, raffle draw, roster sync, rebuild
