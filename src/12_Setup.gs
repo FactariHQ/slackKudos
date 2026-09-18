@@ -3,8 +3,8 @@
  * One-time bootstrap, run from the Apps Script editor.
  *
  * setupSpreadsheet() is idempotent: run it again after upgrading and it will add
- * missing tabs, add missing config keys, and leave existing data and edited
- * values alone.
+ * missing tabs, add missing config keys, refresh the notes column, and leave
+ * existing data and edited values alone.
  */
 
 /**
@@ -92,6 +92,10 @@ function setupSpreadsheet() {
 
   cacheDropAll_();
   __configCache = null;
+
+  // Notes are documentation, not data: bring them up to date with this version
+  // so an upgraded sheet never explains the app it used to be.
+  refreshConfigNotes();
 
   var secret = cfgStr('URL_SECRET');
   var msg = [
@@ -217,6 +221,40 @@ function selfTest() {
     'NOTES\n  ' + notes.join('\n  ');
   console.log(out);
   return out;
+}
+
+/**
+ * Rewrites the notes column on the Config tab from CONFIG_DEFAULTS, leaving
+ * every value alone. Run it after a rename or an upgrade so the explanation
+ * beside each key describes the app people are actually using — setup only
+ * ever adds missing keys, so old notes would otherwise sit there forever.
+ */
+function refreshConfigNotes() {
+  var s = sheet_(SHEETS.CONFIG);
+  var last = s.getLastRow();
+  if (last < 2) return 'Config tab is empty — run setupSpreadsheet() first.';
+
+  var keys = s.getRange(2, 1, last - 1, 1).getValues();
+  var notes = s.getRange(2, 3, last - 1, 1).getValues();
+  var changed = 0;
+  var unknown = [];
+
+  for (var i = 0; i < keys.length; i++) {
+    var k = String(keys[i][0]).trim();
+    if (!k) continue;
+    var d = CONFIG_DEFAULTS[k];
+    if (!d) { unknown.push(k); continue; }
+    if (String(notes[i][0]) !== String(d.notes)) { notes[i][0] = d.notes; changed++; }
+  }
+
+  s.getRange(2, 3, last - 1, 1).setValues(notes);
+  __configCache = null;
+  cacheDropAll_();
+
+  var msg = 'Refreshed ' + changed + ' config note' + (changed === 1 ? '' : 's') + '.' +
+    (unknown.length ? ' Left alone, not a known key: ' + unknown.join(', ') + '.' : '');
+  console.log(msg);
+  return msg;
 }
 
 /** Deletes a person's balance row. Used by selfTest cleanup and by admins. */
