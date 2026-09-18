@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 12_Setup.gs
+ * Tail Wag — 12_Setup.gs
  * One-time bootstrap, run from the Apps Script editor.
  *
  * setupSpreadsheet() is idempotent: run it again after upgrading and it will add
@@ -21,7 +21,7 @@ function setupSpreadsheet() {
   } else {
     var active = null;
     try { active = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { active = null; }
-    ss = active || SpreadsheetApp.create('Orange Dots');
+    ss = active || SpreadsheetApp.create('Tail Wag');
     props.setProperty(PROP_SPREADSHEET_ID, ss.getId());
   }
   __ssCache = ss;
@@ -95,7 +95,7 @@ function setupSpreadsheet() {
 
   var secret = cfgStr('URL_SECRET');
   var msg = [
-    'Orange Dots is set up.',
+    'Tail Wag is set up.',
     '',
     'Spreadsheet: ' + ss.getUrl(),
     'URL secret:  ' + secret,
@@ -176,9 +176,9 @@ function selfTest() {
       var probe = slackApiGet_('conversations.info', { channel: channel }, true);
       if (!probe.ok) {
         notes.push('Could not read ' + cfgStr('ANNOUNCE_CHANNEL') + ' (' + probe.error +
-          '). Invite the bot with /invite @OrangeDots.');
+          '). Invite the bot with /invite @TailWag.');
       } else if (probe.channel && probe.channel.is_member === false) {
-        problems.push('The bot is not in ' + cfgStr('ANNOUNCE_CHANNEL') + '. Run /invite @OrangeDots there.');
+        problems.push('The bot is not in ' + cfgStr('ANNOUNCE_CHANNEL') + '. Run /invite @TailWag there.');
       } else {
         notes.push('Announcement channel OK: #' + (probe.channel ? probe.channel.name : channel) + '.');
       }
@@ -231,7 +231,7 @@ function removeUser_(userId) {
 }
 
 /**
- * Seeds a handful of fake dots so the leaderboard and App Home can be reviewed
+ * Seeds a handful of fake wags so the leaderboard and App Home can be reviewed
  * before the team is let loose. Run clearDemoData() afterwards.
  */
 function seedDemoData() {

@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 10_Triggers.gs
+ * Tail Wag — 10_Triggers.gs
  * Scheduled work: the period digest, the monthly raffle draw, roster sync, and
  * the maintenance jobs an admin can reach for.
  *
@@ -30,7 +30,7 @@ function dailyJob() {
       logInfo_('digest.scheduled', 'system', res.ok ? 'posted' : res.error);
     }
 
-    // Keep the roster fresh so new hires have a balance before their first dot.
+    // Keep the roster fresh so new hires have a balance before their first wag.
     if (dow === startDow) syncRosterFromSlack_();
 
     pruneEvents_();
@@ -87,10 +87,10 @@ function postDigest_(force) {
 
   var byReceiver = {};
   var byGiver = {};
-  var totalDots = 0;
+  var totalWags = 0;
   rows.forEach(function (r) {
     var d = num_(r.dots);
-    totalDots += d;
+    totalWags += d;
     var rid = String(r.receiver_id);
     var gid = String(r.giver_id);
     if (!byReceiver[rid]) byReceiver[rid] = { user_id: rid, name: String(r.receiver_name), dots: 0 };
@@ -99,7 +99,7 @@ function postDigest_(force) {
     byGiver[gid].dots += d;
   });
 
-  if (totalDots === 0 && !force) return { ok: false, error: 'nothing_to_report' };
+  if (totalWags === 0 && !force) return { ok: false, error: 'nothing_to_report' };
 
   var receivers = Object.keys(byReceiver).map(function (k) { return byReceiver[k]; })
     .sort(function (a, b) { return b.dots - a.dots; });
@@ -109,7 +109,7 @@ function postDigest_(force) {
   givers.forEach(function (r, i) { r.rank = i + 1; });
 
   var msg = buildDigest_(periodLabel, receivers, givers, {
-    dots: totalDots,
+    dots: totalWags,
     givers: givers.length,
     receivers: receivers.length
   }, valueBreakdown_(ledgerFilter));
@@ -124,7 +124,7 @@ function postDigest_(force) {
 // ---------------------------------------------------------------------------
 
 /**
- * Runs the drawing for a period. Selection is weighted by entries: one dot
+ * Runs the drawing for a period. Selection is weighted by entries: one wag
  * received is one ticket in the drum, so an occasional contributor still has a
  * real chance while a standout has a proportionally better one.
  *
@@ -192,8 +192,8 @@ function runRaffleDraw_(period, force) {
         method: 'chat.postMessage',
         payload: {
           channel: String(w.user_id),
-          text: 'You won the ' + period + ' Orange Dots raffle.',
-          blocks: [sectionBlock_(':tada: *You won the ' + period + ' Orange Dots raffle* — ' +
+          text: 'You won the ' + period + ' Tail Wag raffle.',
+          blocks: [sectionBlock_(':tada: *You won the ' + period + ' Tail Wag raffle* — ' +
             num_(w.entries) + ' entries out of ' + totalEntries + '.' +
             (cfgStr('RAFFLE_PRIZE') ? '\nPrize: *' + escapeSlack_(cfgStr('RAFFLE_PRIZE')) + '*' : ''))]
         }

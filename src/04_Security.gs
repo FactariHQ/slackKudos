@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 04_Security.gs
+ * Tail Wag — 04_Security.gs
  * Authenticating inbound requests from Slack.
  *
  * The constraint
@@ -24,8 +24,8 @@
  *                    HMAC check below runs and takes precedence over the rest.
  *
  * In practice 1 + 2 is a solid bar for an internal recognition app: an attacker
- * needs the unguessable deployment URL *and* the workspace id to forge a dot,
- * and every dot is attributed and visible in a public channel anyway.
+ * needs the unguessable deployment URL *and* the workspace id to forge a wag,
+ * and every wag is attributed and visible in a public channel anyway.
  */
 
 var SIG_MAX_AGE_SECONDS = 300;

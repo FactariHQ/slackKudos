@@ -1,5 +1,5 @@
 /**
- * Orange Dots — peer recognition for Slack, backed by Google Sheets.
+ * Tail Wag — peer recognition for Slack, backed by Google Sheets.
  * 00_Config.gs — configuration schema, defaults, and typed accessors.
  *
  * Every knob lives in the "Config" tab of the spreadsheet so it can be changed
@@ -43,47 +43,47 @@ var CONFIG_DEFAULTS = {
   SLACK_VERIFICATION_TOKEN: { value: '', notes: 'Legacy verification token (Basic Information → App Credentials). Optional second factor; checked when set.' },
   SLACK_SIGNING_SECRET: { value: '', notes: 'Only used in proxy mode, where a front proxy forwards X-Slack-Signature as a form field. Leave blank for direct Apps Script deployments.' },
   ALLOWED_TEAM_ID: { value: '', notes: 'Your Slack workspace ID (Txxxxxxxx). Requests from any other workspace are rejected. Strongly recommended.' },
-  ANNOUNCE_CHANNEL: { value: '#kudos', notes: 'Channel where public dot announcements, weekly digests and raffle draws are posted. The bot must be a member.' },
+  ANNOUNCE_CHANNEL: { value: '#kudos', notes: 'Channel where public wag announcements, weekly digests and raffle draws are posted. The bot must be a member.' },
 
   // ---- Allowance ----------------------------------------------------------
-  ALLOWANCE_PERIOD: { value: 'week', notes: 'How often everyone\'s dots refill: "week" or "day". HeyTaco refills daily; weekly makes each dot scarcer. Change it any time — balances roll over to the new cadence on their own.' },
-  ALLOWANCE_PEER: { value: 5, notes: 'Orange dots each non-manager gets per period.' },
-  ALLOWANCE_MANAGER: { value: 5, notes: 'Orange dots each manager gets per period, from the separate manager pool.' },
-  MAX_PER_RECIPIENT_PER_PERIOD: { value: 2, notes: 'Most dots one person may give the same person within a period. 0 = no cap.' },
-  CARRY_OVER_UNUSED: { value: false, notes: 'FALSE = unused dots expire at the reset (recommended). TRUE = they roll forward.' },
+  ALLOWANCE_PERIOD: { value: 'week', notes: 'How often everyone\'s wags refill: "week" or "day". HeyTaco refills daily; weekly makes each wag scarcer. Change it any time — balances roll over to the new cadence on their own.' },
+  ALLOWANCE_PEER: { value: 5, notes: 'Wags each non-manager gets per period.' },
+  ALLOWANCE_MANAGER: { value: 5, notes: 'Wags each manager gets per period, from the separate manager pool.' },
+  MAX_PER_RECIPIENT_PER_PERIOD: { value: 2, notes: 'Most wags one person may give the same person within a period. 0 = no cap.' },
+  CARRY_OVER_UNUSED: { value: false, notes: 'FALSE = unused wags expire at the reset (recommended). TRUE = they roll forward.' },
   WEEK_START_DAY: { value: 'MONDAY', notes: 'Day the weekly allowance resets. Ignored when ALLOWANCE_PERIOD is "day".' },
   TIMEZONE: { value: 'America/Denver', notes: 'Timezone used for day, week and month boundaries.' },
-  DM_RECIPIENT: { value: true, notes: 'TRUE sends the recipient a direct message when they get a dot, so it lands even if they miss the channel.' },
+  DM_RECIPIENT: { value: true, notes: 'TRUE sends the recipient a direct message when they get a wag, so it lands even if they miss the channel.' },
   DM_GIVER_RECEIPT: { value: false, notes: 'TRUE also DMs the giver a receipt. Usually noise — the ephemeral reply already confirms it.' },
-  STREAKS_ENABLED: { value: true, notes: 'TRUE tracks how many periods in a row someone has given at least one dot.' },
+  STREAKS_ENABLED: { value: true, notes: 'TRUE tracks how many periods in a row someone has given at least one wag.' },
 
   // ---- Giving rules -------------------------------------------------------
-  MIN_REASON_CHARS: { value: 12, notes: 'Minimum length of the reason text. A dot with no reason is just noise.' },
-  ALLOW_SELF_KUDOS: { value: false, notes: 'FALSE blocks giving dots to yourself.' },
-  ALLOW_BOT_RECIPIENTS: { value: false, notes: 'FALSE blocks giving dots to bots and apps.' },
-  MAX_RECIPIENTS_PER_MESSAGE: { value: 5, notes: 'Most people who can be tagged in one /dot command.' },
-  ALLOW_EMOJI_GIVING: { value: true, notes: 'TRUE lets people give a dot by putting the trigger emoji in a normal message alongside an @mention.' },
-  EMOJI_TRIGGER: { value: 'large_orange_circle', notes: 'Emoji name (no colons) that gives a dot when used in a message with an @mention.' },
-  ALLOW_REACTION_GIVING: { value: true, notes: 'TRUE gives the author a dot when someone adds the trigger emoji as a reaction to their message. The message itself becomes the reason.' },
+  MIN_REASON_CHARS: { value: 12, notes: 'Minimum length of the reason text. A wag with no reason is just noise.' },
+  ALLOW_SELF_KUDOS: { value: false, notes: 'FALSE blocks giving wags to yourself.' },
+  ALLOW_BOT_RECIPIENTS: { value: false, notes: 'FALSE blocks giving wags to bots and apps.' },
+  MAX_RECIPIENTS_PER_MESSAGE: { value: 5, notes: 'Most people who can be tagged in one /wag command.' },
+  ALLOW_EMOJI_GIVING: { value: true, notes: 'TRUE lets people give a wag by putting the trigger emoji in a normal message alongside an @mention.' },
+  EMOJI_TRIGGER: { value: 'jackson', notes: 'Emoji name (no colons) that gives a wag when used in a message with an @mention.' },
+  ALLOW_REACTION_GIVING: { value: true, notes: 'TRUE gives the author a wag when someone adds the trigger emoji as a reaction to their message. The message itself becomes the reason.' },
   REQUIRE_ROSTER: { value: false, notes: 'TRUE means only people listed on the Roster tab may give or receive. FALSE auto-enrolls anyone who participates.' },
 
   // ---- Company values -----------------------------------------------------
-  VALUES_ENABLED: { value: true, notes: 'TRUE lets people tag a dot with the company value it reflects, e.g. /dot @sam #real-world …' },
-  VALUE_REQUIRED: { value: false, notes: 'TRUE refuses a dot that carries no value tag. Start FALSE; turn it on once the habit sticks.' },
+  VALUES_ENABLED: { value: true, notes: 'TRUE lets people tag a wag with the company value it reflects, e.g. /wag @sam #real-world …' },
+  VALUE_REQUIRED: { value: false, notes: 'TRUE refuses a wag that carries no value tag. Start FALSE; turn it on once the habit sticks.' },
   VALUE_TAGS: { value: 'exceptional-care,understand,bigger-lives,real-world,collaborate', notes: 'Short tags people type after #. Keep them lowercase and hyphenated.' },
   VALUE_LABELS: { value: 'Exceptional Clinical Care,Understand Don\'t Judge,Build Bigger Lives,Make It Work in the Real World,Collaborate & Be Transparent', notes: 'Full value names, in the same order as VALUE_TAGS.' },
   VALUE_EMOJI: { value: ':dart:,:heart:,:seedling:,:house:,:handshake:', notes: 'Emoji per value, in the same order as VALUE_TAGS.' },
 
   // ---- Recognition --------------------------------------------------------
-  BADGE_THRESHOLDS: { value: '10,25,50,100,250', notes: 'Lifetime dots RECEIVED at which a badge is awarded.' },
+  BADGE_THRESHOLDS: { value: '10,25,50,100,250', notes: 'Lifetime wags RECEIVED at which a badge is awarded.' },
   BADGE_LABELS: { value: 'Pilot Light,Steady Reinforcer,Dense Schedule,Behavioral Momentum,Living Legend', notes: 'Badge names, in the same order as BADGE_THRESHOLDS.' },
-  BADGE_EMOJI: { value: ':large_orange_circle:,:fire:,:zap:,:rocket:,:trophy:', notes: 'Badge emoji, in the same order as BADGE_THRESHOLDS.' },
-  GIVER_BADGE_THRESHOLDS: { value: '25,100,250', notes: 'Lifetime dots GIVEN at which a generosity badge is awarded.' },
-  GIVER_BADGE_LABELS: { value: 'Noticer,Dot Dispenser,Chief Reinforcement Officer', notes: 'Generosity badge names, in order.' },
+  BADGE_EMOJI: { value: ':jackson:,:fire:,:zap:,:rocket:,:trophy:', notes: 'Badge emoji, in the same order as BADGE_THRESHOLDS.' },
+  GIVER_BADGE_THRESHOLDS: { value: '25,100,250', notes: 'Lifetime wags GIVEN at which a generosity badge is awarded.' },
+  GIVER_BADGE_LABELS: { value: 'Noticer,Wag Dispenser,Chief Reinforcement Officer', notes: 'Generosity badge names, in order.' },
   GIVER_BADGE_EMOJI: { value: ':eyes:,:handshake:,:star2:', notes: 'Generosity badge emoji, in order.' },
 
   // ---- Raffle -------------------------------------------------------------
-  RAFFLE_ENABLED: { value: true, notes: 'TRUE runs a monthly drawing where every dot received is one entry.' },
+  RAFFLE_ENABLED: { value: true, notes: 'TRUE runs a monthly drawing where every wag received is one entry.' },
   RAFFLE_MAX_ENTRIES_PER_PERSON: { value: 0, notes: 'Cap on entries per person per month so one runaway winner cannot own the drum. 0 = uncapped.' },
   RAFFLE_MIN_ENTRIES_TO_DRAW: { value: 5, notes: 'Skip the drawing if the month had fewer entries than this.' },
   RAFFLE_WINNERS_PER_DRAW: { value: 1, notes: 'How many names to pull each month.' },
@@ -94,11 +94,11 @@ var CONFIG_DEFAULTS = {
   WEEKLY_DIGEST_ENABLED: { value: true, notes: 'TRUE posts last week\'s leaderboard and value breakdown every Monday morning.' },
   DIGEST_HOUR: { value: 9, notes: 'Hour of the day (0-23, in TIMEZONE) for the Monday digest and the monthly raffle draw.' },
   LEADERBOARD_SIZE: { value: 10, notes: 'How many people appear on a leaderboard.' },
-  ANNOUNCE_IN_SOURCE_CHANNEL: { value: true, notes: 'TRUE announces a dot in the channel where it was given. FALSE sends every announcement to ANNOUNCE_CHANNEL instead.' },
-  MIRROR_TO_ANNOUNCE_CHANNEL: { value: false, notes: 'TRUE also copies every dot into ANNOUNCE_CHANNEL, giving one feed of all recognition. Can get noisy.' },
+  ANNOUNCE_IN_SOURCE_CHANNEL: { value: true, notes: 'TRUE announces a wag in the channel where it was given. FALSE sends every announcement to ANNOUNCE_CHANNEL instead.' },
+  MIRROR_TO_ANNOUNCE_CHANNEL: { value: false, notes: 'TRUE also copies every wag into ANNOUNCE_CHANNEL, giving one feed of all recognition. Can get noisy.' },
 
   // ---- Administration -----------------------------------------------------
-  ADMIN_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs allowed to run /dot-admin. Leave blank to allow Slack workspace admins only via explicit listing.' },
+  ADMIN_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs allowed to run /wag-admin. Leave blank to allow Slack workspace admins only via explicit listing.' },
   MANAGER_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs that draw from the manager pool. Also settable per-row on the Roster tab.' },
   PAUSED: { value: false, notes: 'TRUE puts the whole app in read-only mode: balances and leaderboards still work, giving is refused.' },
   LOG_LEVEL: { value: 'INFO', notes: 'DEBUG, INFO, WARN or ERROR. Controls what lands on the Events tab.' }
@@ -221,8 +221,8 @@ function badgeLadder(track) {
     out.push({
       track: isGiver ? 'giver' : 'receiver',
       threshold: thresholds[i],
-      label: labels[i] || (thresholds[i] + ' dots'),
-      emoji: emoji[i] || ':large_orange_circle:',
+      label: labels[i] || (thresholds[i] + ' wags'),
+      emoji: emoji[i] || ':jackson:',
       key: (isGiver ? 'give_' : 'recv_') + thresholds[i]
     });
   }
@@ -231,7 +231,7 @@ function badgeLadder(track) {
 }
 
 /**
- * The company values people can tag a dot with.
+ * The company values people can tag a wag with.
  * @return {Array<{tag:string,label:string,emoji:string}>}
  */
 function valueList() {

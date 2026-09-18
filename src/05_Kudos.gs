@@ -1,6 +1,6 @@
 /**
- * Orange Dots — 05_Kudos.gs
- * Parsing the give syntax and the transactional core of awarding dots.
+ * Tail Wag — 05_Kudos.gs
+ * Parsing the give syntax and the transactional core of awarding wags.
  */
 
 // ---------------------------------------------------------------------------
@@ -17,15 +17,15 @@ var RE_URL_LINK = /<(https?:\/\/[^>|]+)(?:\|([^>]*))?>/g;
 var RE_VALUE_TAG = /(?:^|\s)#([a-z0-9][a-z0-9\-_]{1,30})(?=\s|$)/gi;
 
 /**
- * Parses the text of a /dot command (or a message that triggered emoji giving).
+ * Parses the text of a /wag command (or a message that triggered emoji giving).
  *
  * Supported shapes:
- *   /dot @sam great catch on the Denver auth
- *   /dot @sam @dana x2 covered the whole weekend between them
- *   /dot @sam :large_orange_circle::large_orange_circle: two for the price of one
+ *   /wag @sam great catch on the Denver auth
+ *   /wag @sam @dana x2 covered the whole weekend between them
+ *   /wag @sam :jackson::jackson: two for the price of one
  *
  * @param {string} text raw Slack text
- * @return {{userIds:Array<string>, dots:number, reason:string, groups:Array<string>,
+ * @return {{userIds:Array<string>, wags:number, reason:string, groups:Array<string>,
  *           broadcasts:Array<string>, bareHandles:Array<string>, explicitCount:boolean}}
  */
 function parseGive_(text) {
@@ -69,7 +69,7 @@ function parseGive_(text) {
   }
 
   // Otherwise, repeated trigger emoji set the count.
-  var trigger = cfgStr('EMOJI_TRIGGER') || 'large_orange_circle';
+  var trigger = cfgStr('EMOJI_TRIGGER') || 'jackson';
   var emojiRe = new RegExp(':' + trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':', 'g');
   var emojiMatches = rest.match(emojiRe);
   if (!explicitCount && emojiMatches && emojiMatches.length > 1) {
@@ -124,49 +124,49 @@ function parseGive_(text) {
 
 /**
  * Checks a parsed give against the rules, without touching the sheet.
- * Sheet-dependent checks (allowance, per-recipient cap) happen in giveDots_().
+ * Sheet-dependent checks (allowance, per-recipient cap) happen in giveWags_().
  * @return {{ok:boolean, message:string}}
  */
 function validateGive_(parsed, giverId) {
   if (cfgBool('PAUSED')) {
-    return { ok: false, message: 'Orange Dots is paused right now. Nothing is being counted — try again once it is switched back on.' };
+    return { ok: false, message: 'Tail Wag is paused right now. Nothing is being counted — try again once it is switched back on.' };
   }
   if (parsed.broadcasts.length) {
-    return { ok: false, message: 'Dots go to people, not to `@channel` or `@here`. Tag the individuals you mean.' };
+    return { ok: false, message: 'Wags go to people, not to `@channel` or `@here`. Tag the individuals you mean.' };
   }
   if (parsed.groups.length) {
-    return { ok: false, message: 'User groups are not supported — tag people individually so each dot lands on a person.' };
+    return { ok: false, message: 'User groups are not supported — tag people individually so each wag lands on a person.' };
   }
   if (!parsed.userIds.length) {
     if (parsed.bareHandles.length) {
       return { ok: false, message: 'I could not resolve *@' + escapeSlack_(parsed.bareHandles[0]) + '*. Pick the person from Slack\'s autocomplete so the mention turns blue, then send it again.' };
     }
-    return { ok: false, message: 'Tag at least one person. Try `/dot @someone why they earned it`.' };
+    return { ok: false, message: 'Tag at least one person. Try `/wag @someone why they earned it`.' };
   }
   var maxRecipients = cfgNum('MAX_RECIPIENTS_PER_MESSAGE');
   if (maxRecipients > 0 && parsed.userIds.length > maxRecipients) {
     return { ok: false, message: 'That is ' + parsed.userIds.length + ' people in one go — the limit is ' + maxRecipients + '. Split it up.' };
   }
   if (!cfgBool('ALLOW_SELF_KUDOS') && parsed.userIds.length === 1 && parsed.userIds[0] === giverId) {
-    return { ok: false, message: 'No dots for yourself. Nice try though.' };
+    return { ok: false, message: 'No wags for yourself. Nice try though.' };
   }
   if (cfgBool('VALUES_ENABLED') && cfgBool('VALUE_REQUIRED') && !parsed.value) {
     var tagHelp = valueList().map(function (v) { return '`#' + v.tag + '`'; }).join('  ');
     return {
       ok: false,
-      message: 'Tag the value it reflects, so the dot says something about how we work:\n' + tagHelp
+      message: 'Tag the value it reflects, so the wag says something about how we work:\n' + tagHelp
     };
   }
   var minReason = cfgNum('MIN_REASON_CHARS');
   if (parsed.reason.length < minReason) {
     return {
       ok: false,
-      message: 'Add a reason — at least ' + minReason + ' characters. The reason is the part people remember; the dot is just the receipt.\n' +
-        'Try `/dot ' + mention_(parsed.userIds[0]) + ' covered two sessions at short notice on Tuesday`'
+      message: 'Add a reason — at least ' + minReason + ' characters. The reason is the part people remember; the wag is just the receipt.\n' +
+        'Try `/wag ' + mention_(parsed.userIds[0]) + ' covered two sessions at short notice on Tuesday`'
     };
   }
   if (rosterBlocks_(giverId)) {
-    return { ok: false, message: 'You are not on the Orange Dots roster yet. Ask an admin to add you.' };
+    return { ok: false, message: 'You are not on the Tail Wag roster yet. Ask an admin to add you.' };
   }
   return { ok: true, message: '' };
 }
@@ -176,18 +176,18 @@ function validateGive_(parsed, giverId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Awards dots. Runs under the script lock so two commands cannot spend the same
+ * Awards wags. Runs under the script lock so two commands cannot spend the same
  * allowance twice. Partial success is normal and expected: if someone tags three
- * people but only has two dots left, the first two land and the third is
+ * people but only has two wags left, the first two land and the third is
  * reported back as skipped.
  *
- * @param {{giverId:string, giverName:string, userIds:Array<string>, dotsEach:number,
+ * @param {{giverId:string, giverName:string, userIds:Array<string>, wagsEach:number,
  *          reason:string, channelId:string, channelName:string, source:string,
  *          messageTs:string}} req
  * @return {{ok:boolean, error:string, awarded:Array, skipped:Array, remaining:number,
  *           allowance:number, pool:string, spent:number}}
  */
-function giveDots_(req) {
+function giveWags_(req) {
   // Warm the profile cache before taking the lock: these are network calls, and
   // holding the script lock across them blocks every other giver in the
   // workspace for no reason.
@@ -220,14 +220,14 @@ function giveDots_(req) {
 
     for (var i = 0; i < req.userIds.length; i++) {
       var rid = req.userIds[i];
-      var want = req.dotsEach;
+      var want = req.wagsEach;
 
       if (!allowSelf && rid === req.giverId) {
-        result.skipped.push({ userId: rid, reason: 'No dots for yourself.' });
+        result.skipped.push({ userId: rid, reason: 'No wags for yourself.' });
         continue;
       }
       if (rosterBlocks_(rid)) {
-        result.skipped.push({ userId: rid, reason: 'Not on the Orange Dots roster.' });
+        result.skipped.push({ userId: rid, reason: 'Not on the Tail Wag roster.' });
         continue;
       }
 
@@ -237,7 +237,7 @@ function giveDots_(req) {
         continue;
       }
       if (!allowBots && profile && profile.is_bot) {
-        result.skipped.push({ userId: rid, reason: 'Bots do not collect dots.' });
+        result.skipped.push({ userId: rid, reason: 'Bots do not collect wags.' });
         continue;
       }
 
@@ -248,7 +248,7 @@ function giveDots_(req) {
         if (headroom <= 0) {
           result.skipped.push({
             userId: rid,
-            reason: 'You have already given them your ' + perRecipientCap + ' ' + dotWord_(perRecipientCap) + ' for this week.'
+            reason: 'You have already given them your ' + perRecipientCap + ' ' + wagWord_(perRecipientCap) + ' for this week.'
           });
           continue;
         }
@@ -258,7 +258,7 @@ function giveDots_(req) {
       // Remaining allowance.
       var remaining = num_(giverBal.remaining);
       if (remaining <= 0) {
-        result.skipped.push({ userId: rid, reason: 'You are out of dots until the weekly reset.' });
+        result.skipped.push({ userId: rid, reason: 'You are out of wags until the weekly reset.' });
         continue;
       }
       if (want > remaining) want = remaining;
@@ -269,7 +269,7 @@ function giveDots_(req) {
       // When self-kudos is allowed, giver and receiver are the SAME sheet row.
       // Reading it a second time would produce a second object, and the final
       // write of giverBal would then silently discard everything credited to
-      // receiverBal — the dots, the badge state, all of it.
+      // receiverBal — the wags, the badge state, all of it.
       var receiverBal = isSelf ? giverBal : getBalance_(rid, receiverName, false);
       if (!isSelf) {
         rollForward_(receiverBal);
@@ -315,7 +315,7 @@ function giveDots_(req) {
         userId: rid,
         name: receiverName,
         dots: want,
-        requested: req.dotsEach,
+        requested: req.wagsEach,
         receivedTotal: num_(receiverBal.received_total),
         receivedThisPeriod: num_(receiverBal.received_this_period),
         badges: freshBadges,
@@ -329,7 +329,7 @@ function giveDots_(req) {
     var giverFresh = result.spent > 0 ? awardBadges_(giverBal) : [];
     if (result.spent > 0) {
       upsertRoster_(req.giverId, { display_name: req.giverName });
-      // Giving streak: consecutive periods in which they gave at least one dot.
+      // Giving streak: consecutive periods in which they gave at least one wag.
       if (cfgBool('STREAKS_ENABLED')) {
         var curPeriod = periodKey_();
         var lastGave = String(giverBal.last_gave_period || '');
@@ -367,7 +367,7 @@ function giveDots_(req) {
  * Leaderboard for a period, read from the denormalized Balances tab.
  * @param {string} period 'week' | 'month' | 'all'
  * @param {number=} size
- * @return {Array<{user_id:string,name:string,dots:number,rank:number}>}
+ * @return {Array<{user_id:string,name:string,wags:number,rank:number}>}
  */
 function leaderboard_(period, size) {
   var key = 'leaderboard.' + period;
@@ -420,9 +420,9 @@ function globalStats_() {
   var rows = allBalances_();
   var stats = {
     people: 0,
-    dotsAllTime: 0,
-    dotsThisPeriod: 0,
-    dotsThisMonth: 0,
+    wagsAllTime: 0,
+    wagsThisPeriod: 0,
+    wagsThisMonth: 0,
     unspentThisPeriod: 0,
     participationThisPeriod: 0,
     periodKey: periodKey_(),
@@ -432,9 +432,9 @@ function globalStats_() {
   rows.forEach(function (b) {
     if (!String(b.user_id).trim()) return;
     stats.people++;
-    stats.dotsAllTime += num_(b.received_total);
-    stats.dotsThisPeriod += num_(b.received_this_period);
-    stats.dotsThisMonth += num_(b.received_month);
+    stats.wagsAllTime += num_(b.received_total);
+    stats.wagsThisPeriod += num_(b.received_this_period);
+    stats.wagsThisMonth += num_(b.received_month);
     stats.unspentThisPeriod += num_(b.remaining);
     if (num_(b.spent_this_period) > 0) stats.participationThisPeriod++;
   });
@@ -462,11 +462,11 @@ function recentReasons_(limit, filter) {
 }
 
 /**
- * How dots were distributed across the company values in a period.
+ * How wags were distributed across the company values in a period.
  * Reads the ledger, so it is used by digests and dashboards, never by a slash
  * command that has to answer inside three seconds.
  * @param {{week_key?:string, month_key?:string}} filter
- * @return {Array<{tag:string,label:string,emoji:string,dots:number,share:number}>}
+ * @return {Array<{tag:string,label:string,emoji:string,wags:number,share:number}>}
  */
 function valueBreakdown_(filter) {
   if (!cfgBool('VALUES_ENABLED')) return [];

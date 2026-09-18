@@ -1,13 +1,13 @@
 /**
- * Orange Dots — 02_Store.gs
+ * Tail Wag — 02_Store.gs
  * The Google Sheet data layer: spreadsheet access, roster, balances, ledger,
  * badges and raffle entries.
  *
  * Design notes
  * ------------
  * Slack gives a slash command three seconds to respond, so nothing on the hot
- * path is allowed to scan the whole ledger. Everything a /dot needs — the
- * giver's remaining allowance, how many dots they have already sent this
+ * path is allowed to scan the whole ledger. Everything a /wag needs — the
+ * giver's remaining allowance, how many wags they have already sent this
  * recipient this week, the recipient's running totals and badge state — lives
  * denormalized on that person's single row of the Balances tab. The Ledger tab
  * is append-only and exists for audit, export and the reasons feed.
@@ -120,7 +120,7 @@ function headerOf_(name) {
   return out;
 }
 
-/** Runs fn while holding the script lock, so two concurrent /dot calls cannot double-spend. */
+/** Runs fn while holding the script lock, so two concurrent /wag calls cannot double-spend. */
 function withLock_(fn, timeoutMs) {
   var lock = LockService.getScriptLock();
   var got = lock.tryLock(timeoutMs === undefined ? 12000 : timeoutMs);
@@ -157,7 +157,7 @@ function isManager_(userId) {
   return !!(r && String(r.pool || '').trim().toLowerCase() === 'manager');
 }
 
-/** True when the user may run /dot-admin. */
+/** True when the user may run /wag-admin. */
 function isAdmin_(userId) {
   return cfgList('ADMIN_USER_IDS').indexOf(userId) !== -1;
 }
@@ -410,13 +410,13 @@ function parseJson_(v, fallback) {
   }
 }
 
-/** How many dots this giver has already sent this recipient during the current week. */
+/** How many wags this giver has already sent this recipient during the current week. */
 function givenToThisWeek_(bal, receiverId) {
   var map = parseJson_(bal.given_to_json, {});
   return num_(map[receiverId]);
 }
 
-/** Records dots against the per-recipient weekly cap. */
+/** Records wags against the per-recipient weekly cap. */
 function bumpGivenTo_(bal, receiverId, dots) {
   var map = parseJson_(bal.given_to_json, {});
   map[receiverId] = num_(map[receiverId]) + dots;
@@ -477,7 +477,7 @@ function queryLedger_(f) {
   return out;
 }
 
-/** True when this Slack message has already produced dots (emoji idempotency). */
+/** True when this Slack message has already produced wags (emoji idempotency). */
 function messageAlreadyCounted_(messageTs, giverId) {
   if (!messageTs) return false;
   var key = 'msg.' + giverId + '.' + messageTs;
@@ -580,7 +580,7 @@ function nextBadge_(bal) {
 /**
  * period+user → raffle row, memoized for the life of one execution.
  *
- * Without the memo, a /dot naming several people re-scans the whole Raffle tab
+ * Without the memo, a /wag naming several people re-scans the whole Raffle tab
  * twice per recipient — once to add entries, once to read the total back.
  */
 var __raffleIdx = {};

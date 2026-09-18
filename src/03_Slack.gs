@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 03_Slack.gs
+ * Tail Wag — 03_Slack.gs
  * Slack Web API client, response envelopes and Block Kit builders.
  */
 
@@ -146,7 +146,7 @@ function fetchUserProfile_(userId) {
 /**
  * Warms the profile cache for several users in one parallel batch.
  *
- * Without this, a /dot naming five people costs five sequential users.info
+ * Without this, a /wag naming five people costs five sequential users.info
  * round trips before any work starts — most of the three-second budget spent
  * waiting, with the script lock held the whole time.
  */

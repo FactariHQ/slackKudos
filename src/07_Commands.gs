@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 07_Commands.gs
+ * Tail Wag — 07_Commands.gs
  * Slash command handlers.
  *
  * Latency budget
@@ -9,15 +9,15 @@
  * and writes, one append, and a single parallel batch of Slack calls. The public
  * announcement is returned as the HTTP response itself (`response_type:
  * in_channel`) rather than as a separate chat.postMessage, which saves an entire
- * round trip on every dot.
+ * round trip on every wag.
  */
 
 /**
- * /dot @someone reason
+ * /wag @someone reason
  * @param {Object} cmd parsed slash-command fields
  * @return {ContentService.TextOutput}
  */
-function handleDotCommand_(cmd) {
+function handleWagCommand_(cmd) {
   var text = String(cmd.text || '').trim();
   if (!text || /^(help|\?)$/i.test(text)) {
     var help = buildHelpCard_(cmd.user_id);
@@ -32,7 +32,7 @@ function handleDotCommand_(cmd) {
     giverId: cmd.user_id,
     giverName: cmd.user_name || displayName_(cmd.user_id),
     userIds: parsed.userIds,
-    dotsEach: parsed.dots,
+    wagsEach: parsed.dots,
     reason: parsed.reason,
     value: parsed.value,
     valueTag: parsed.value ? parsed.value.tag : '',
@@ -44,24 +44,24 @@ function handleDotCommand_(cmd) {
 
   var result;
   try {
-    result = giveDots_(req);
+    result = giveWags_(req);
   } catch (e) {
     if (String(e.message || e).indexOf('BUSY') !== -1) {
-      return ephemeral_('Someone else is giving a dot this exact second. Try again — it will go through.');
+      return ephemeral_('Someone else is giving a wag this exact second. Try again — it will go through.');
     }
-    logError_('dot.failed', cmd.user_id, String(e && e.stack || e));
-    return ephemeral_('Something went wrong writing that dot. Nothing was counted — try again, and tell an admin if it keeps happening.');
+    logError_('wag.failed', cmd.user_id, String(e && e.stack || e));
+    return ephemeral_('Something went wrong writing that wag. Nothing was counted — try again, and tell an admin if it keeps happening.');
   }
 
   if (!result.awarded.length) {
     var why = result.skipped.map(function (s) {
       return mention_(s.userId) + ' — ' + s.reason;
     }).join('\n');
-    return ephemeral_('No dots went out.\n' + (why || 'Nothing to do.') +
+    return ephemeral_('No wags went out.\n' + (why || 'Nothing to do.') +
       '\n\nYou have ' + result.remaining + ' of ' + result.allowance + ' left this ' + periodWord_() + '.');
   }
 
-  logInfo_('dot.given', cmd.user_id, {
+  logInfo_('wag.given', cmd.user_id, {
     to: result.awarded.map(function (a) { return a.userId; }),
     dots: result.spent,
     value: req.valueTag,
@@ -136,10 +136,10 @@ function dispatchSideMessages_(result, req) {
 }
 
 /**
- * /dots — balance, leaderboards, someone else's standing.
+ * /wags — balance, leaderboards, someone else's standing.
  * @return {ContentService.TextOutput}
  */
-function handleDotsCommand_(cmd) {
+function handleWagsCommand_(cmd) {
   var text = String(cmd.text || '').trim();
   var lower = text.toLowerCase();
 
@@ -148,7 +148,7 @@ function handleDotsCommand_(cmd) {
     return ephemeral_(help.text, help.blocks);
   }
 
-  // Someone else's dots: /dots @sam
+  // Someone else's wags: /wags @sam
   var parsed = parseGive_(text);
   if (parsed.userIds.length === 1 && !/(leader|board|top|month|week|day|all|given|give)/.test(lower)) {
     var targetId = parsed.userIds[0];
@@ -159,13 +159,13 @@ function handleDotsCommand_(cmd) {
 
   if (/^(given|givers|generous|giving)$/.test(lower)) {
     var givers = giverLeaderboard_();
-    var gblocks = [headerBlock_('🟠 Most generous — all time')];
+    var gblocks = [headerBlock_('🐕 Most generous — all time')];
     gblocks.push(givers.length
       ? sectionBlock_(givers.map(function (r, i) {
         return rankEmoji_(i) + ' *' + ordinal_(r.rank) + '*  ' + mention_(r.user_id) + '  —  ' +
           r.dots + ' given';
       }).join('\n'))
-      : sectionBlock_('_Nobody has given a dot yet._'));
+      : sectionBlock_('_Nobody has given a wag yet._'));
     return ephemeral_('Most generous', gblocks);
   }
 
@@ -202,7 +202,7 @@ function handleDotsCommand_(cmd) {
   }
 
   if (/^(feed|recent|latest|why)$/.test(lower)) {
-    return ephemeral_('Recent dots', buildFeedBlocks_(10));
+    return ephemeral_('Recent wags', buildFeedBlocks_(10));
   }
 
   if (/^(raffle|entries|drawing)$/.test(lower)) {
@@ -213,7 +213,7 @@ function handleDotsCommand_(cmd) {
   return ephemeral_(h.text, h.blocks);
 }
 
-/** Another person's public-facing dot card. */
+/** Another person's public-facing wag card. */
 function buildOtherBalanceCard_(bal, userId) {
   var badges = badgesFor_(bal);
   var lines = [];
@@ -234,16 +234,16 @@ function buildOtherBalanceCard_(bal, userId) {
       return '> ' + escapeSlack_(truncate_(r.reason, 160)) + '  _— ' + escapeSlack_(r.giver_name) + '_';
     }).join('\n')));
   }
-  return { text: displayName_(userId) + ': ' + num_(bal.received_total) + ' dots all-time', blocks: blocks };
+  return { text: displayName_(userId) + ': ' + num_(bal.received_total) + ' wags all-time', blocks: blocks };
 }
 
 /** The recent-reasons feed. */
 function buildFeedBlocks_(limit) {
   var rows = recentReasons_(limit || 10);
-  if (!rows.length) return [sectionBlock_('_No dots yet._')];
+  if (!rows.length) return [sectionBlock_('_No wags yet._')];
   var values = {};
   valueList().forEach(function (v) { values[v.tag] = v; });
-  return [headerBlock_('🟠 Recent dots')].concat(rows.map(function (r) {
+  return [headerBlock_('🐕 Recent wags')].concat(rows.map(function (r) {
     var v = values[r.value_tag];
     return contextBlock_(
       (v ? v.emoji + ' ' : '') + mention_(r.giver_id) + ' → ' + mention_(r.receiver_id) +
@@ -268,24 +268,24 @@ function buildRaffleStatusBlocks_(userId) {
       ' out of *' + total + '* in the drum — about *' + Math.round(odds * 100) + '%* of the tickets.' +
       (cfgStr('RAFFLE_PRIZE') ? '\nPrize: *' + escapeSlack_(cfgStr('RAFFLE_PRIZE')) + '*' : ''))
   ];
-  blocks.push(contextBlock_('Every dot you receive is one entry. Drawn on the 1st, then the drum resets.' +
+  blocks.push(contextBlock_('Every wag you receive is one entry. Drawn on the 1st, then the drum resets.' +
     (cfgNum('RAFFLE_MAX_ENTRIES_PER_PERSON') > 0
       ? ' Capped at ' + cfgNum('RAFFLE_MAX_ENTRIES_PER_PERSON') + ' entries each.' : '')));
   return blocks;
 }
 
 // ---------------------------------------------------------------------------
-// /dot-admin
+// /wag-admin
 // ---------------------------------------------------------------------------
 
 /**
- * /dot-admin <subcommand>
+ * /wag-admin <subcommand>
  * Deliberately terse and explicit — this is the lever that changes other
  * people's balances, so every action is logged and echoed back.
  */
 function handleAdminCommand_(cmd) {
   if (!isAdmin_(cmd.user_id)) {
-    return ephemeral_('That command is admin-only. Ask whoever runs Orange Dots to add you to `ADMIN_USER_IDS` in the Config tab.');
+    return ephemeral_('That command is admin-only. Ask whoever runs Tail Wag to add you to `ADMIN_USER_IDS` in the Config tab.');
   }
 
   var parts = String(cmd.text || '').trim().split(/\s+/);
@@ -293,27 +293,27 @@ function handleAdminCommand_(cmd) {
   var rest = parts.join(' ');
 
   switch (sub) {
-    case 'status': return ephemeral_('Orange Dots status', buildAdminStatusBlocks_());
+    case 'status': return ephemeral_('Tail Wag status', buildAdminStatusBlocks_());
 
     case 'grant': {
-      // /dot-admin grant @user 3 reason
+      // /wag-admin grant @user 3 reason
       var p = parseGive_(rest);
-      if (!p.userIds.length) return ephemeral_('Usage: `/dot-admin grant @user 3 reason`');
+      if (!p.userIds.length) return ephemeral_('Usage: `/wag-admin grant @user 3 reason`');
       var nMatch = rest.match(/(?:^|\s)(\d{1,2})(?=\s|$)/);
       var n = nMatch ? parseInt(nMatch[1], 10) : 1;
       var reason = p.reason.replace(/(?:^|\s)\d{1,2}(?=\s|$)/, ' ').replace(/\s+/g, ' ').trim() ||
         'Granted by an admin';
       var granted = adminGrant_(p.userIds, n, reason, cmd.user_id);
-      return ephemeral_('Granted ' + n + ' ' + dotWord_(n) + ' to ' +
+      return ephemeral_('Granted ' + n + ' ' + wagWord_(n) + ' to ' +
         granted.map(function (g) { return mention_(g.userId); }).join(', ') + '.');
     }
 
     case 'topup': {
-      // /dot-admin topup @user 5  — refill someone's allowance, not their received total
+      // /wag-admin topup @user 5  — refill someone's allowance, not their received total
       var p2 = parseGive_(rest);
       var tMatch = rest.match(/(?:^|\s)(\d{1,2})(?=\s|$)/);
       var amount = tMatch ? parseInt(tMatch[1], 10) : allowanceFor_(cmd.user_id);
-      if (!p2.userIds.length) return ephemeral_('Usage: `/dot-admin topup @user 5`');
+      if (!p2.userIds.length) return ephemeral_('Usage: `/wag-admin topup @user 5`');
       p2.userIds.forEach(function (uid) {
         var b = getBalance_(uid, displayName_(uid), false);
         rollForward_(b);
@@ -326,13 +326,13 @@ function handleAdminCommand_(cmd) {
     }
 
     case 'set': {
-      // /dot-admin set KEY value
+      // /wag-admin set KEY value
       var sp = rest.split(/\s+/);
       var key = (sp.shift() || '').toUpperCase();
       var val = sp.join(' ');
-      if (!key) return ephemeral_('Usage: `/dot-admin set ALLOWANCE_PEER 5`');
+      if (!key) return ephemeral_('Usage: `/wag-admin set ALLOWANCE_PEER 5`');
       if (!CONFIG_DEFAULTS.hasOwnProperty(key)) {
-        return ephemeral_('`' + escapeSlack_(key) + '` is not a known setting. `/dot-admin keys` lists them.');
+        return ephemeral_('`' + escapeSlack_(key) + '` is not a known setting. `/wag-admin keys` lists them.');
       }
       if (/TOKEN|SECRET/.test(key)) {
         return ephemeral_('Secrets are not settable from Slack — put `' + escapeSlack_(key) + '` straight into the Config tab.');
@@ -350,7 +350,7 @@ function handleAdminCommand_(cmd) {
     case 'reset': {
       if (rest.trim().toLowerCase() !== 'confirm') {
         return ephemeral_(':warning: This refills *everyone\'s* allowance right now, mid-period. ' +
-          'Run `/dot-admin reset confirm` if that is what you mean.');
+          'Run `/wag-admin reset confirm` if that is what you mean.');
       }
       var n2 = resetAllAllowances_();
       logWarn_('admin.reset', cmd.user_id, { people: n2 });
@@ -386,7 +386,7 @@ function handleAdminCommand_(cmd) {
     case 'rebuild':
       if (rest.trim().toLowerCase() !== 'confirm') {
         return ephemeral_(':warning: This recomputes every balance from the ledger. ' +
-          'Run `/dot-admin rebuild confirm` to go ahead.');
+          'Run `/wag-admin rebuild confirm` to go ahead.');
       }
       var rb = rebuildBalancesFromLedger_();
       logWarn_('admin.rebuild', cmd.user_id, rb);
@@ -398,23 +398,23 @@ function handleAdminCommand_(cmd) {
 
     default:
       return ephemeral_('Admin commands', [sectionBlock_(
-        '`/dot-admin status` — health, totals, config at a glance\n' +
-        '`/dot-admin grant @user 3 reason` — award dots outside anyone\'s allowance\n' +
-        '`/dot-admin topup @user 5` — add to someone\'s remaining allowance\n' +
-        '`/dot-admin set KEY value` — change a setting\n' +
-        '`/dot-admin keys` — list settable keys\n' +
-        '`/dot-admin reset confirm` — refill everyone now\n' +
-        '`/dot-admin draw [2026-08]` — run a raffle drawing\n' +
-        '`/dot-admin digest` — post the digest now\n' +
-        '`/dot-admin pause` / `resume`\n' +
-        '`/dot-admin sync` — pull the roster from Slack\n' +
-        '`/dot-admin rebuild confirm` — recompute balances from the ledger\n' +
-        '`/dot-admin whoami`'
+        '`/wag-admin status` — health, totals, config at a glance\n' +
+        '`/wag-admin grant @user 3 reason` — award wags outside anyone\'s allowance\n' +
+        '`/wag-admin topup @user 5` — add to someone\'s remaining allowance\n' +
+        '`/wag-admin set KEY value` — change a setting\n' +
+        '`/wag-admin keys` — list settable keys\n' +
+        '`/wag-admin reset confirm` — refill everyone now\n' +
+        '`/wag-admin draw [2026-08]` — run a raffle drawing\n' +
+        '`/wag-admin digest` — post the digest now\n' +
+        '`/wag-admin pause` / `resume`\n' +
+        '`/wag-admin sync` — pull the roster from Slack\n' +
+        '`/wag-admin rebuild confirm` — recompute balances from the ledger\n' +
+        '`/wag-admin whoami`'
       )]);
   }
 }
 
-/** Awards dots from nowhere — an admin grant, outside the allowance system. */
+/** Awards wags from nowhere — an admin grant, outside the allowance system. */
 function adminGrant_(userIds, dots, reason, adminId) {
   return withLock_(function () {
     var out = [];
@@ -472,12 +472,12 @@ function buildAdminStatusBlocks_() {
   var stats = globalStats_();
   var word = periodWord_();
   return [
-    headerBlock_('🟠 Orange Dots — status'),
+    headerBlock_('🐕 Tail Wag — status'),
     fieldsBlock_([
       ['People tracked', String(stats.people)],
-      ['Dots all-time', String(stats.dotsAllTime)],
-      ['This ' + word, String(stats.dotsThisPeriod)],
-      ['This month', String(stats.dotsThisMonth)],
+      ['Wags all-time', String(stats.wagsAllTime)],
+      ['This ' + word, String(stats.wagsThisPeriod)],
+      ['This month', String(stats.wagsThisMonth)],
       ['Unspent right now', String(stats.unspentThisPeriod)],
       ['Gave this ' + word, stats.participationThisPeriod + ' of ' + stats.people]
     ]),

@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 08_Events.gs
+ * Tail Wag — 08_Events.gs
  * Events API handling: giving by typing the emoji in any channel, giving by
  * reacting with it, and the App Home.
  *
@@ -68,7 +68,7 @@ function handleMessageEvent_(event) {
     giverId: event.user,
     giverName: displayName_(event.user),
     userIds: parsed.userIds,
-    dotsEach: parsed.dots,
+    wagsEach: parsed.dots,
     reason: parsed.reason,
     value: parsed.value,
     valueTag: parsed.value ? parsed.value.tag : '',
@@ -80,21 +80,21 @@ function handleMessageEvent_(event) {
 
   var result;
   try {
-    result = giveDots_(req);
+    result = giveWags_(req);
   } catch (e) {
     // A lock conflict is transient. Release the claim so Slack's retry of this
-    // same event can succeed — otherwise the dot is lost silently and the giver
+    // same event can succeed — otherwise the wag is lost silently and the giver
     // is never told, which is the worst possible failure for a trust system.
     if (String(e.message || e).indexOf('BUSY') !== -1) {
       unmarkMessageCounted_(event.ts, event.user);
       logWarn_('emoji.busy', event.user, event.ts);
       postEphemeral_(event.channel, event.user,
-        'Orange Dots was busy for a second and did not record that one. Send it again.');
+        'Tail Wag was busy for a second and did not record that one. Send it again.');
       return emptyOut_();
     }
     logError_('emoji.failed', event.user, String(e && e.stack || e));
     postEphemeral_(event.channel, event.user,
-      'Something went wrong recording that dot. Nothing was counted — try again.');
+      'Something went wrong recording that wag. Nothing was counted — try again.');
     return emptyOut_();
   }
 
@@ -104,7 +104,7 @@ function handleMessageEvent_(event) {
     return emptyOut_();
   }
 
-  logInfo_('dot.given', event.user, {
+  logInfo_('wag.given', event.user, {
     to: result.awarded.map(function (a) { return a.userId; }),
     dots: result.spent, source: 'emoji'
   });
@@ -143,7 +143,7 @@ function handleReactionEvent_(event) {
     giverId: giverId,
     giverName: displayName_(giverId),
     userIds: [receiverId],
-    dotsEach: 1,
+    wagsEach: 1,
     reason: reason,
     value: null,
     valueTag: '',
@@ -158,13 +158,13 @@ function handleReactionEvent_(event) {
 
   var result;
   try {
-    result = giveDots_(req);
+    result = giveWags_(req);
   } catch (e) {
     if (String(e.message || e).indexOf('BUSY') !== -1) {
       unmarkMessageCounted_(claimKey, giverId);
       logWarn_('reaction.busy', giverId, claimKey);
       postEphemeral_(event.item.channel, giverId,
-        'Orange Dots was busy for a second. Remove the reaction and add it again.');
+        'Tail Wag was busy for a second. Remove the reaction and add it again.');
       return emptyOut_();
     }
     logError_('reaction.failed', giverId, String(e && e.stack || e));
@@ -177,7 +177,7 @@ function handleReactionEvent_(event) {
     return emptyOut_();
   }
 
-  logInfo_('dot.given', giverId, { to: [receiverId], dots: result.spent, source: 'reaction' });
+  logInfo_('wag.given', giverId, { to: [receiverId], dots: result.spent, source: 'reaction' });
   var msg = buildAwardMessage_(result, req);
   postMessage_(event.item.channel, msg.text, msg.blocks, event.item.ts);
   dispatchSideMessages_(result, req);
@@ -279,7 +279,7 @@ function handleInteraction_(payload) {
             buttonElement_('This ' + periodWord_(), 'lb_period', 'period', period === 'period' ? 'primary' : undefined),
             buttonElement_('This month', 'lb_month', 'month', period === 'month' ? 'primary' : undefined),
             buttonElement_('All time', 'lb_all', 'all', period === 'all' ? 'primary' : undefined),
-            buttonElement_('My dots', 'show_balance', 'me')
+            buttonElement_('My wags', 'show_balance', 'me')
           ])
         ]));
         return emptyOut_();

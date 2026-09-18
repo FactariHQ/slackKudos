@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 09_Views.gs
+ * Tail Wag — 09_Views.gs
  * The App Home tab: a person's standing, the boards, and the recent feed, all
  * in one place they can open any time without typing a command.
  */
@@ -23,11 +23,11 @@ function buildHomeView_(userId) {
   var word = periodWord_();
   var blocks = [];
 
-  // --- Your dots -----------------------------------------------------------
-  blocks.push(headerBlock_('🟠 Your orange dots'));
+  // --- Your wags -----------------------------------------------------------
+  blocks.push(headerBlock_('🐕 Your wags'));
   blocks.push(sectionBlock_(
     '*' + num_(bal.remaining) + ' of ' + num_(bal.allowance) + '* left to give this ' + word + '  ' +
-    dotRun_(num_(bal.remaining)) +
+    wagRun_(num_(bal.remaining)) +
     (num_(bal.remaining) === 0 ? '\n_Refills ' + periodResetText_() + '._' : '')
   ));
   blocks.push(fieldsBlock_([
@@ -75,7 +75,7 @@ function buildHomeView_(userId) {
       return rankEmoji_(i) + ' ' + mention_(r.user_id) + ' — ' + r.dots +
         (r.user_id === userId ? '  ← you' : '');
     }).join('\n'))
-    : contextBlock_('_Nobody has picked up a dot this ' + word + ' yet._'));
+    : contextBlock_('_Nobody has picked up a wag this ' + word + ' yet._'));
 
   var monthRows = leaderboard_('month', 5);
   if (monthRows.length) {
@@ -105,7 +105,7 @@ function buildHomeView_(userId) {
   // --- How to give ---------------------------------------------------------
   blocks.push(dividerBlock_());
   var trigger = ':' + cfgStr('EMOJI_TRIGGER') + ':';
-  var howLines = ['*Giving one*', '`/dot @someone what they did`'];
+  var howLines = ['*Giving one*', '`/wag @someone what they did`'];
   if (cfgBool('ALLOW_EMOJI_GIVING')) {
     howLines.push('or type `@someone ' + trigger + ' why` in any channel');
   }

@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 01_Util.gs
+ * Tail Wag — 01_Util.gs
  * Time keys, caching, logging, and small helpers shared across the app.
  */
 
@@ -235,16 +235,21 @@ function logError_(type, actor, detail) { logEvent_('ERROR', type, actor, detail
 // Text helpers
 // ---------------------------------------------------------------------------
 
-/** Pluralizes "dot"/"dots". */
-function dotWord_(n) {
-  return Math.abs(n) === 1 ? 'dot' : 'dots';
+/** Pluralizes "wag"/"wags". */
+function wagWord_(n) {
+  return Math.abs(n) === 1 ? 'wag' : 'wags';
 }
 
-/** A run of orange circle emoji, capped so long strings stay readable. */
-function dotRun_(n) {
+/**
+ * A run of the trigger emoji, capped so long strings stay readable. Reads
+ * EMOJI_TRIGGER so the pictures in a message always match the emoji people
+ * type to give — rename the emoji in Config and the whole app follows.
+ */
+function wagRun_(n) {
+  var name = cfgStr('EMOJI_TRIGGER') || 'jackson';
   var capped = Math.min(n, 10);
   var s = '';
-  for (var i = 0; i < capped; i++) s += ':large_orange_circle:';
+  for (var i = 0; i < capped; i++) s += ':' + name + ':';
   if (n > capped) s += ' ×' + n;
   return s;
 }

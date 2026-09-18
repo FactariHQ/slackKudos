@@ -1,5 +1,5 @@
 /**
- * Orange Dots — 11_WebApp.gs
+ * Tail Wag — 11_WebApp.gs
  * The HTTP surface: one doPost() that Slack sends everything to, and a doGet()
  * that serves a read-only leaderboard page for screens and all-hands.
  */
@@ -92,8 +92,8 @@ function doPost(e) {
     // Never leak a stack trace into Slack; say something a human can act on.
     return jsonOut_({
       response_type: 'ephemeral',
-      text: 'Orange Dots hit an error handling that. Nothing was counted. If it keeps happening, ' +
-        'check the Events tab of the Orange Dots sheet.'
+      text: 'Tail Wag hit an error handling that. Nothing was counted. If it keeps happening, ' +
+        'check the Events tab of the Tail Wag sheet.'
     });
   }
 }
@@ -102,12 +102,12 @@ function doPost(e) {
 function routeCommand_(cmd) {
   var name = String(cmd.command || '').replace(/^\//, '').toLowerCase();
 
-  if (name === 'dot' || name === 'kudos' || name === 'orangedot') return handleDotCommand_(cmd);
-  if (name === 'dots' || name === 'mydots' || name === 'leaderboard') return handleDotsCommand_(cmd);
-  if (name === 'dot-admin' || name === 'dots-admin' || name === 'kudos-admin') return handleAdminCommand_(cmd);
+  if (name === 'wag' || name === 'kudos' || name === 'tailwag') return handleWagCommand_(cmd);
+  if (name === 'wags' || name === 'mydots' || name === 'leaderboard') return handleWagsCommand_(cmd);
+  if (name === 'wag-admin' || name === 'wags-admin' || name === 'kudos-admin') return handleAdminCommand_(cmd);
 
   // Unknown command name — most likely a manifest edit that did not match.
-  return ephemeral_('`/' + escapeSlack_(name) + '` is not wired up. Known commands: `/dot`, `/dots`, `/dot-admin`.');
+  return ephemeral_('`/' + escapeSlack_(name) + '` is not wired up. Known commands: `/wag`, `/wags`, `/wag-admin`.');
 }
 
 function safeParseJson_(s) {
@@ -133,8 +133,8 @@ function doGet(e) {
       '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">' +
       '<style>body{font:16px/1.5 system-ui,sans-serif;background:#0f1115;color:#e7e9ee;' +
       'display:grid;place-items:center;height:100vh;margin:0}</style>' +
-      '<div><h1 style="font-size:20px">🟠 Orange Dots</h1><p>This link needs its key.</p></div>'
-    ).setTitle('Orange Dots');
+      '<div><h1 style="font-size:20px">🐕 Tail Wag</h1><p>This link needs its key.</p></div>'
+    ).setTitle('Tail Wag');
   }
 
   if (params.view === 'health') {
@@ -167,7 +167,7 @@ function doGet(e) {
     key: params.k
   };
   return tmpl.evaluate()
-    .setTitle('Orange Dots')
+    .setTitle('Tail Wag')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
