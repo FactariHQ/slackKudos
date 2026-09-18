@@ -1476,6 +1476,36 @@ test('REG-14 selfTest reads the announce channel the way Slack allows', () => {
   });
 });
 
+test('REG-16 setup refreshes a stale notes column on an upgraded sheet', () => {
+  const env = freshEnv();
+  const cfg = env.state.spreadsheet.getSheetByName('Config');
+  const rows = cfg.getDataRange().getValues();
+  const row = rows.findIndex((r) => String(r[0]) === 'EMOJI_TRIGGER');
+  assert(row > 0, 'EMOJI_TRIGGER should be on the Config tab');
+
+  cfg.getRange(row + 1, 3, 1, 1).setValues([['Emoji name that gives a dot, from the app we used to be.']]);
+  env.call('setupSpreadsheet');
+
+  const note = String(cfg.getDataRange().getValues()[row][2]);
+  eq(note.indexOf('the app we used to be'), -1, `setup should have refreshed the note, got: ${note}`);
+});
+
+test('REG-15 refreshConfigNotes rewrites the notes and leaves the values alone', () => {
+  const env = freshEnv({ ALLOWANCE_PEER: 7 });
+  const cfg = env.state.spreadsheet.getSheetByName('Config');
+  const rows = cfg.getDataRange().getValues();
+  const row = rows.findIndex((r) => String(r[0]) === 'ALLOWANCE_PEER');
+  assert(row > 0, 'ALLOWANCE_PEER should be on the Config tab');
+
+  cfg.getRange(row + 1, 3, 1, 1).setValues([['Orange dots each non-manager gets per period.']]);
+  const out = env.call('refreshConfigNotes');
+
+  const after = cfg.getDataRange().getValues()[row];
+  eq(String(after[2]).indexOf('Orange'), -1, `stale note should be gone, got: ${after[2]}`);
+  eq(env.call('num_', after[1]), 7, 'the value must survive a notes refresh');
+  assert(/Refreshed \d+ config note/.test(out), `unexpected summary: ${out}`);
+});
+
 // ===========================================================================
 
 console.log(`\n${'─'.repeat(60)}`);
