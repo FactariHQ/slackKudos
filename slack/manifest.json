@@ -4,14 +4,14 @@
     "minor_version": 1
   },
   "display_information": {
-    "name": "Orange Dots",
-    "description": "Peer recognition, one orange dot at a time.",
-    "long_description": "Orange Dots is a peer-to-peer recognition app. Everyone gets a small, fixed number of orange dots to give away each period — so a dot means something, and nobody can spam them. Give one with /dot @someone and a reason, by typing the orange circle emoji in any channel, or by reacting with it. Dots build a leaderboard, unlock badges at milestones, and earn entries in a monthly raffle. Every dot carries a public reason, because the reason is the part people remember. Runs on your own Google Sheet, so the data stays in your Workspace.",
+    "name": "Tail Wag",
+    "description": "Peer recognition, one tail wag at a time.",
+    "long_description": "Tail Wag is a peer-to-peer recognition app. Everyone gets a small, fixed number of wags to give away each period — so a wag means something, and nobody can spam them. Give one with /wag @someone and a reason, by typing Jackson's emoji in any channel, or by reacting with it. Wags build a leaderboard, unlock badges at milestones, and earn entries in a monthly raffle. Every wag carries a public reason, because the reason is the part people remember. Runs on your own Google Sheet, so the data stays in your Workspace.",
     "background_color": "#ff8a1f"
   },
   "features": {
     "bot_user": {
-      "display_name": "Orange Dots",
+      "display_name": "Tail Wag",
       "always_online": true
     },
     "app_home": {
@@ -21,23 +21,23 @@
     },
     "slash_commands": [
       {
-        "command": "/dot",
+        "command": "/wag",
         "url": "REPLACE_WITH_WEB_APP_URL",
-        "description": "Give someone an orange dot",
+        "description": "Give someone a wag",
         "usage_hint": "@someone what they did",
         "should_escape": true
       },
       {
-        "command": "/dots",
+        "command": "/wags",
         "url": "REPLACE_WITH_WEB_APP_URL",
-        "description": "Your dots, the leaderboards, and how it all works",
+        "description": "Your wags, the leaderboards, and how it all works",
         "usage_hint": "[leaderboard | month | all | given | @someone]",
         "should_escape": true
       },
       {
-        "command": "/dot-admin",
+        "command": "/wag-admin",
         "url": "REPLACE_WITH_WEB_APP_URL",
-        "description": "Orange Dots administration",
+        "description": "Tail Wag administration",
         "usage_hint": "status | grant | set | pause | draw",
         "should_escape": true
       }
