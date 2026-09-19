@@ -20,13 +20,18 @@ function elapsedMs_() {
 }
 
 /**
- * True when so much of Slack's three-second budget is gone that the response
- * is likely to be thrown away. Anything the team must see has to be posted
- * with chat.postMessage instead of returned.
+ * True when so much of Slack's three-second budget is gone that the response is
+ * likely to be thrown away.
+ *
+ * The number has to be well under 3000. Slack starts its clock when it sends the
+ * request, and roughly a second goes to Apps Script dispatch and response
+ * handling either side of this function — time doPost never sees. A request that
+ * measures 900ms of its own work can still be past three seconds on the wire,
+ * which is exactly how a fast answer ends up discarded with "operation_timeout".
  */
 function responseLikelyTooLate_() {
   var used = elapsedMs_();
-  return used > 0 && used > num_(cfgStr('RESPONSE_DEADLINE_MS') || 2400);
+  return used > 0 && used > cfgNum('RESPONSE_DEADLINE_MS');
 }
 
 /**
@@ -83,6 +88,20 @@ function doPost(e) {
     }
 
     var elapsed = new Date().getTime() - started;
+
+    // Do not gamble on the HTTP response once our share of the budget is spent.
+    // response_url reaches the same place in Slack and stays valid for thirty
+    // minutes, so the answer lands even when the request itself has timed out.
+    // The work is already done at this point, so nothing is counted twice.
+    if (kind === 'command' && payload.response_url && responseLikelyTooLate_()) {
+      var late = '';
+      try { late = out.getContent(); } catch (e2) { late = ''; }
+      if (late && postToResponseUrl_(payload.response_url, late)) {
+        logWarn_('response.late', payload.command || '', { ms: elapsed });
+        return emptyOut_();
+      }
+    }
+
     if (elapsed > 2500) {
       logWarn_('slow_request', kind, { ms: elapsed, command: payload.command || payload.type || '' });
     }

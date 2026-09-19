@@ -58,7 +58,7 @@ var CONFIG_DEFAULTS = {
   STREAKS_ENABLED: { value: true, notes: 'TRUE tracks how many periods in a row someone has given at least one tailwag.' },
 
   // ---- Giving rules -------------------------------------------------------
-  MIN_REASON_CHARS: { value: 12, notes: 'Minimum length of the reason text. A tailwag with no reason is just noise.' },
+  MIN_REASON_CHARS: { value: 6, notes: 'Minimum length of the reason text. Low enough for "doggos!", high enough to rule out "ty".' },
   ALLOW_SELF_KUDOS: { value: false, notes: 'FALSE blocks giving tailwags to yourself.' },
   ALLOW_BOT_RECIPIENTS: { value: false, notes: 'FALSE blocks giving tailwags to bots and apps.' },
   MAX_RECIPIENTS_PER_MESSAGE: { value: 5, notes: 'Most people who can be tagged in one /wag command.' },
@@ -102,6 +102,7 @@ var CONFIG_DEFAULTS = {
   // ---- Administration -----------------------------------------------------
   ADMIN_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs allowed to run /wag-admin. Leave blank to allow Slack workspace admins only via explicit listing.' },
   MANAGER_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs that draw from the manager pool. Also settable per-row on the Roster tab.' },
+  RESPONSE_DEADLINE_MS: { value: 1200, notes: 'How many milliseconds of our own work may pass before the answer is sent to response_url instead of being returned. Slack allows three seconds end to end and about a second of that is Apps Script overhead we cannot see, so this is deliberately well under 3000.' },
   PAUSED: { value: false, notes: 'TRUE puts the whole app in read-only mode: balances and leaderboards still work, giving is refused.' },
   LOG_LEVEL: { value: 'INFO', notes: 'DEBUG, INFO, WARN or ERROR. Controls what lands on the Events tab.' }
 };
@@ -109,9 +110,16 @@ var CONFIG_DEFAULTS = {
 /** Cache of the parsed Config tab for the life of one execution. */
 var __configCache = null;
 
+/** How long the parsed Config tab survives in CacheService. Six hours is the
+ *  platform maximum; every write to Config drops the entry, so it is safe. */
+var CONFIG_CACHE_TTL = 21600;
+
 /**
- * Returns the whole config as a plain object of raw string values,
- * merged over the defaults. Cached per execution and in CacheService for 5 min.
+ * Returns the whole config as a plain object of raw string values, merged over
+ * the defaults. Cached per execution and in CacheService for CONFIG_CACHE_TTL.
+ * Every writer drops the cache, so a long TTL never serves a stale value — and a
+ * cold read costs a full spreadsheet open, which on a quiet day was happening on
+ * almost every command and eating Slack's three-second budget.
  */
 function getConfigAll() {
   if (__configCache) return __configCache;
@@ -134,7 +142,7 @@ function getConfigAll() {
     fromSheet[key] = rows[i].value;
     merged[key] = rows[i].value;
   }
-  cachePut_('config', fromSheet, 300);
+  cachePut_('config', fromSheet, CONFIG_CACHE_TTL);
   __configCache = merged;
   return merged;
 }

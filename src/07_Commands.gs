@@ -68,28 +68,49 @@ function handleWagCommand_(cmd) {
     channel: cmd.channel_name
   });
 
-  // Side messages — DMs, mirror copies, the private receipt — all in one batch.
-  dispatchSideMessages_(result, req);
-
   var announcement = buildAwardMessage_(result, req);
   var toSourceChannel = cfgBool('ANNOUNCE_IN_SOURCE_CHANNEL');
+
+  // When announcements are centralized the public post is just another Slack
+  // call, so it rides in the same parallel batch as the DMs and the receipt.
+  // Sending it on its own afterwards cost a second serial round trip, and on a
+  // path with a three-second budget that was the difference between landing and
+  // timing out.
+  var extra = [];
+  if (!toSourceChannel) {
+    var announceChannel = resolveChannel_(cfgStr('ANNOUNCE_CHANNEL'));
+    if (announceChannel) {
+      extra.push({
+        method: 'chat.postMessage',
+        payload: {
+          channel: announceChannel,
+          text: announcement.text,
+          blocks: announcement.blocks,
+          unfurl_links: false,
+          unfurl_media: false
+        }
+      });
+    }
+  }
+
+  // Side messages — DMs, mirror copies, the private receipt — all in one batch.
+  dispatchSideMessages_(result, req, extra);
 
   if (toSourceChannel) {
     return inChannel_(announcement.text, announcement.blocks);
   }
-  // Announcements are centralized: post there, and confirm privately here.
-  postMessage_(resolveChannel_(cfgStr('ANNOUNCE_CHANNEL')), announcement.text, announcement.blocks);
   var receipt = buildGiverReceipt_(result, req);
   return ephemeral_(receipt.text, receipt.blocks);
 }
 
 /**
  * Sends everything that is not the main announcement, in a single parallel batch:
- * recipient DMs, the optional mirror copy, and the giver's private receipt when
- * there is something worth telling them.
+ * recipient DMs, the optional mirror copy, the giver's private receipt when
+ * there is something worth telling them, and any extra calls the caller hands in
+ * (the public announcement, when it is going to a central channel).
  */
-function dispatchSideMessages_(result, req) {
-  var calls = [];
+function dispatchSideMessages_(result, req, extraCalls) {
+  var calls = (extraCalls || []).slice();
 
   if (cfgBool('DM_RECIPIENT')) {
     result.awarded.forEach(function (a) {

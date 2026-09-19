@@ -106,6 +106,32 @@ function postEphemeral_(channel, user, text, blocks) {
   return slackApi_('chat.postEphemeral', payload, true);
 }
 
+/**
+ * Sends an already-serialized response body to a slash command's response_url.
+ * Used when the HTTP response is likely to arrive after Slack has stopped
+ * listening: the same JSON that would have been returned is posted here instead,
+ * and Slack shows it in the same place. Valid for thirty minutes after the
+ * command, so this is a genuine second chance rather than a best effort.
+ * @param {string} url response_url from the slash command payload
+ * @param {string} bodyJson the response body, already JSON
+ * @return {boolean} true when Slack accepted it
+ */
+function postToResponseUrl_(url, bodyJson) {
+  if (!url || !bodyJson) return false;
+  try {
+    var res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json; charset=utf-8',
+      payload: bodyJson,
+      muteHttpExceptions: true
+    });
+    return res.getResponseCode() < 300;
+  } catch (e) {
+    logWarn_('response_url.failed', '', String(e));
+    return false;
+  }
+}
+
 /** Sends a delayed response to a slash command's response_url. */
 function respondLater_(responseUrl, body) {
   if (!responseUrl) return { ok: false, error: 'no_response_url' };
