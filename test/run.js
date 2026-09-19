@@ -1633,6 +1633,25 @@ test('REG-23 config is read from the sheet once and then served from cache', () 
   eq(env.run('CONFIG_CACHE_TTL'), 21600);
 });
 
+
+test('REG-24 editing the Config tab by hand drops the cached copy', () => {
+  const env = freshEnv();
+  env.call('getConfigAll');
+  assert(env.state.cache['od.v1.config'] !== undefined, 'config starts cached');
+
+  // An edit somewhere else leaves it alone.
+  env.call('onConfigEdit', { range: { getSheet: () => ({ getName: () => 'Ledger' }) } });
+  assert(env.state.cache['od.v1.config'] !== undefined, 'a Ledger edit is none of our business');
+
+  // An edit on Config drops it, so the next command reads the new value.
+  env.call('onConfigEdit', { range: { getSheet: () => ({ getName: () => 'Config' }) } });
+  eq(env.state.cache['od.v1.config'], undefined, 'a Config edit must drop the cache');
+
+  // And it can never break an edit, whatever it is handed.
+  env.call('onConfigEdit', null);
+  env.call('onConfigEdit', {});
+});
+
 // ===========================================================================
 
 console.log(`\n${'─'.repeat(60)}`);
