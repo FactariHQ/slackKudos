@@ -40,10 +40,28 @@ function dailyJob() {
   }
 }
 
-/** Installs (or reinstalls) the daily trigger. Safe to run repeatedly. */
+/**
+ * Runs whenever someone edits the backing spreadsheet by hand. Its only job is
+ * to drop the cached copy of the Config tab, so a knob changed in the sheet
+ * takes effect on the next command instead of whenever the cache happens to
+ * expire. Installed by installTriggers(); without it, the long config TTL would
+ * make hand-editing the Config tab feel broken.
+ */
+function onConfigEdit(e) {
+  try {
+    var name = e && e.range && e.range.getSheet ? e.range.getSheet().getName() : '';
+    if (name && name !== SHEETS.CONFIG) return;
+    cacheDrop_('config');
+  } catch (err) {
+    // An edit must never fail because of us.
+  }
+}
+
+/** Installs (or reinstalls) the daily job and the Config-tab watcher. Safe to run repeatedly. */
 function installTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'dailyJob') ScriptApp.deleteTrigger(t);
+    var fn = t.getHandlerFunction();
+    if (fn === 'dailyJob' || fn === 'onConfigEdit') ScriptApp.deleteTrigger(t);
   });
   var hour = Math.max(0, Math.min(23, cfgNum('DIGEST_HOUR') || 9));
   ScriptApp.newTrigger('dailyJob')
@@ -53,15 +71,25 @@ function installTriggers() {
     .everyDays(1)
     .inTimezone(cfgStr('TIMEZONE') || 'America/Denver')
     .create();
-  logInfo_('triggers.installed', 'system', 'dailyJob at ' + hour + ':05 ' + cfgStr('TIMEZONE'));
-  return 'Daily job installed for ' + hour + ':05 ' + cfgStr('TIMEZONE') + '.';
+  try {
+    ScriptApp.newTrigger('onConfigEdit')
+      .forSpreadsheet(ss_())
+      .onEdit()
+      .create();
+  } catch (e) {
+    logWarn_('triggers.on_edit_failed', 'system', String(e));
+  }
+
+  logInfo_('triggers.installed', 'system', 'dailyJob at ' + hour + ':05 ' + cfgStr('TIMEZONE') + ', onConfigEdit');
+  return 'Daily job installed for ' + hour + ':05 ' + cfgStr('TIMEZONE') + ', plus the Config-tab watcher.';
 }
 
 /** Removes the scheduled job. */
 function removeTriggers() {
   var n = 0;
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'dailyJob') { ScriptApp.deleteTrigger(t); n++; }
+    var fn = t.getHandlerFunction();
+    if (fn === 'dailyJob' || fn === 'onConfigEdit') { ScriptApp.deleteTrigger(t); n++; }
   });
   return 'Removed ' + n + ' trigger(s).';
 }
