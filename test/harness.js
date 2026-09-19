@@ -254,7 +254,9 @@ function createEnvironment(options = {}) {
     nowValue: options.now || new Date('2026-09-16T18:00:00Z'),
     randomQueue: [],
     lockHeld: false,
-    uuidCounter: 0
+    uuidCounter: 0,
+    batchSeq: 0,        // which fetchAll batch a recorded call belonged to
+    currentBatch: null
   };
 
   function jsonResponse(obj) {
@@ -263,10 +265,11 @@ function createEnvironment(options = {}) {
   }
 
   function handleFetch(url, params) {
+    const batchId = state.currentBatch;
     const method = String(url).replace('https://slack.com/api/', '').split('?')[0];
     let payload = {};
     try { payload = params && params.payload ? JSON.parse(params.payload) : {}; } catch (e) { payload = {}; }
-    state.fetches.push({ url, method, payload, params });
+    state.fetches.push({ url, method, payload, params, batchId });
 
     // Slack's read methods take query parameters. Sent as a JSON POST they come
     // back invalid_arguments, which reads exactly like a bad ID — so the fake
@@ -370,8 +373,19 @@ function createEnvironment(options = {}) {
     },
 
     UrlFetchApp: {
-      fetch: (url, params) => handleFetch(url, params),
-      fetchAll: (requests) => requests.map((r) => handleFetch(r.url, r))
+      // A lone fetch is its own batch; a fetchAll is one batch however many
+      // requests it carries. Tests use this to prove that a path with a
+      // three-second budget is not making serial round trips.
+      fetch: (url, params) => {
+        state.batchSeq += 1;
+        state.currentBatch = 'single-' + state.batchSeq;
+        try { return handleFetch(url, params); } finally { state.currentBatch = null; }
+      },
+      fetchAll: (requests) => {
+        state.batchSeq += 1;
+        state.currentBatch = 'batch-' + state.batchSeq;
+        try { return requests.map((r) => handleFetch(r.url, r)); } finally { state.currentBatch = null; }
+      }
     },
 
     ContentService: {

@@ -239,7 +239,7 @@ suite('Validation rules');
 
 test('a reason under the minimum is refused, with an example', () => {
   const env = freshEnv();
-  const out = slashCommand(env, '/wag', '<@U08SAM01> thanks');
+  const out = slashCommand(env, '/wag', '<@U08SAM01> ty');
   const b = body(out);
   eq(b.response_type, 'ephemeral');
   includes(b.text, 'Add a reason');
@@ -1522,6 +1522,115 @@ test('REG-15 refreshConfigNotes rewrites the notes and leaves the values alone',
   eq(String(after[2]).indexOf('Orange'), -1, `stale note should be gone, got: ${after[2]}`);
   eq(env.call('num_', after[1]), 7, 'the value must survive a notes refresh');
   assert(/Refreshed \d+ config note/.test(out), `unexpected summary: ${out}`);
+});
+
+
+test('REG-19 the reason minimum lets a short real reason through', () => {
+  const env = freshEnv();
+  eq(env.call('cfgNum', 'MIN_REASON_CHARS'), 6, 'the floor is six characters');
+
+  // The two that were refused in real use on 19 Sep.
+  ['doggos!', 'good idea'].forEach((reason) => {
+    const b = body(slashCommand(env, '/wag', `<@U08SAM01> ${reason}`));
+    eq(b.text.indexOf('Add a reason'), -1, `"${reason}" should be accepted, got: ${b.text}`);
+  });
+
+  // Still refuses the ones that say nothing.
+  const b = body(slashCommand(env, '/wag', '<@U08DANA1> ty'));
+  includes(b.text, 'Add a reason');
+});
+
+test('REG-20 a give makes one parallel round trip to Slack, not two', () => {
+  // The live shape: announcements are centralized in #kudos, the giver gets a
+  // private receipt back on the HTTP response.
+  const env = freshEnv({ ANNOUNCE_IN_SOURCE_CHANNEL: false });
+  env.clearFetches();
+  slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice on Tuesday');
+
+  const posts = env.state.fetches.filter((f) => f.method === 'chat.postMessage');
+  const announce = posts.filter((f) => f.payload.channel === 'C_KUDOS');
+  eq(announce.length, 1, 'the announcement goes to #kudos exactly once');
+
+  // Every Slack write in the give path belongs to one fetchAll batch. The fake
+  // records the requests in order, so a second serial post would show up as a
+  // chat.postMessage after a non-Slack call or on its own.
+  const batchIds = new Set(env.state.fetches.filter((f) => f.method.indexOf('chat.') === 0).map((f) => f.batchId));
+  eq(batchIds.size, 1, `all chat.* calls should share one batch, saw ${batchIds.size}`);
+});
+
+test('REG-21 an answer past the deadline goes to response_url and the body comes back empty', () => {
+  // RESPONSE_DEADLINE_MS 0 means "our share of the budget is already gone",
+  // which is what a slow spreadsheet open looks like in production.
+  const env = freshEnv({ RESPONSE_DEADLINE_MS: 0 });
+  env.clearFetches();
+
+  const out = env.call('doPost', {
+    parameter: {
+      k: 'secret123',
+      command: '/wag', text: '<@U08SAM01> covered two sessions at no notice on Tuesday',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+
+  eq(out.getContent(), '', 'Slack has stopped listening; hand back nothing');
+
+  const late = env.state.fetches.filter((f) => String(f.url).indexOf('hooks.slack.test') !== -1);
+  eq(late.length, 1, 'the answer should have been posted to response_url');
+  const delivered = JSON.parse(late[0].params.payload);
+  includes(JSON.stringify(delivered), 'tailwag');
+
+  // And it is counted exactly once, not once per delivery route.
+  const ledger = env.state.spreadsheet.getSheetByName('Ledger').getDataRange().getValues();
+  eq(ledger.length - 1, 1, 'one ledger row');
+});
+
+test('REG-22 a refusal past the deadline reaches the user too', () => {
+  // The 19 Sep failure: "/wag @lindsey doggos!" was refused for a short reason,
+  // the refusal was fast, so it rode the HTTP response — and Slack had already
+  // given up. The user saw operation_timeout and no explanation at all.
+  const env = freshEnv({ RESPONSE_DEADLINE_MS: 0, MIN_REASON_CHARS: 12 });
+  env.clearFetches();
+
+  const out = env.call('doPost', {
+    parameter: {
+      k: 'secret123',
+      command: '/wag', text: '<@U08SAM01> doggos!',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+
+  eq(out.getContent(), '');
+  const late = env.state.fetches.filter((f) => String(f.url).indexOf('hooks.slack.test') !== -1);
+  eq(late.length, 1, 'the refusal has to reach the user, not vanish');
+  const delivered = JSON.parse(late[0].params.payload);
+  eq(delivered.response_type, 'ephemeral');
+  includes(delivered.text, 'Add a reason');
+});
+
+test('REG-23 config is read from the sheet once and then served from cache', () => {
+  const env = freshEnv();
+  env.run("var __cfgReads = 0; var __realReadSheet = readSheet_;"
+    + " readSheet_ = function (n) { if (n === 'Config') __cfgReads++; return __realReadSheet(n); };"
+    + " cacheDrop_('config'); __configCache = null;");
+
+  env.call('getConfigAll');
+  env.run('__configCache = null;');   // a second execution, same cache
+  env.call('getConfigAll');
+  eq(env.run('__cfgReads'), 1, 'the Config tab should be opened once, not once per execution');
+
+  assert(env.call('cfgNum', 'RESPONSE_DEADLINE_MS') > 0, 'the deadline has a value');
+  assert(env.state.cache['od.v1.config'] !== undefined, 'config should be cached');
+
+  // Six hours, the platform maximum. Every writer drops the entry, so the only
+  // thing a short TTL bought was a cold spreadsheet read on almost every
+  // command — out of the same three seconds Slack was counting.
+  eq(env.run('CONFIG_CACHE_TTL'), 21600);
 });
 
 // ===========================================================================
