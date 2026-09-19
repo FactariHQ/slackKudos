@@ -172,7 +172,7 @@ test('repeated trigger emoji set the count', () => {
   eq(p.reason, 'three whole sessions covered');
 });
 
-test('a single trigger emoji still means one wag', () => {
+test('a single trigger emoji still means one tailwag', () => {
   const env = freshEnv();
   const p = env.call('parseGive_', '<@U08SAM01> :jackson: saved the Denver auth today');
   eq(p.dots, 1);
@@ -249,7 +249,7 @@ test('a reason under the minimum is refused, with an example', () => {
 test('self-kudos is refused', () => {
   const env = freshEnv();
   const b = body(slashCommand(env, '/wag', '<@U08JOSH1> I did a wonderful job today'));
-  includes(b.text, 'No wags for yourself');
+  includes(b.text, 'No tailwags for yourself');
 });
 
 test('@channel is refused', () => {
@@ -272,7 +272,7 @@ test('a value tag can be made mandatory', () => {
   includes(b.text, '#real-world');
 });
 
-test('PAUSED refuses new wags but leaves lookups working', () => {
+test('PAUSED refuses new tailwags but leaves lookups working', () => {
   const env = freshEnv({ PAUSED: true });
   const give = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   includes(give.text, 'paused');
@@ -281,10 +281,10 @@ test('PAUSED refuses new wags but leaves lookups working', () => {
 });
 
 // ===========================================================================
-suite('Giving wags');
+suite('Giving tailwags');
 // ===========================================================================
 
-test('a valid wag lands, announces in channel, and debits the giver', () => {
+test('a valid tailwag lands, announces in channel, and debits the giver', () => {
   const env = freshEnv();
   const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
   eq(b.response_type, 'in_channel');
@@ -318,8 +318,8 @@ test('the weekly allowance is enforced', () => {
     slashCommand(env, '/wag', `<@U08SAM01> great work on thing number ${i} this week`);
   }
   const b = body(slashCommand(env, '/wag', '<@U08SAM01> one more great thing this week'));
-  eq(b.response_type, 'ephemeral', 'the sixth wag must not be announced');
-  includes(b.text, 'out of wags');
+  eq(b.response_type, 'ephemeral', 'the sixth tailwag must not be announced');
+  includes(b.text, 'out of tailwags');
 
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   eq(env.call('num_', sam.received_total), 5, 'exactly five should have landed');
@@ -335,7 +335,7 @@ test('the per-recipient cap stops one person soaking up the whole allowance', ()
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   eq(env.call('num_', sam.received_total), 2);
   const josh = env.call('getBalance_', 'U08JOSH1', 'josh');
-  eq(env.call('num_', josh.remaining), 3, 'the refused wag must not be debited');
+  eq(env.call('num_', josh.remaining), 3, 'the refused tailwag must not be debited');
 });
 
 test('the per-recipient cap trims an over-sized give rather than refusing it', () => {
@@ -348,7 +348,7 @@ test('the per-recipient cap trims an over-sized give rather than refusing it', (
 
 test('a partial give works: what fits lands, the rest is reported back', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  // Spend down to one wag.
+  // Spend down to one tailwag.
   for (let i = 0; i < 4; i++) slashCommand(env, '/wag', `<@U08LEE01> thing number ${i} done well`);
   env.clearFetches();
 
@@ -356,11 +356,11 @@ test('a partial give works: what fits lands, the rest is reported back', () => {
   const sam = env.call('getBalance_', 'U08SAM01', 'sam');
   const dana = env.call('getBalance_', 'U08DANA1', 'dana');
   eq(env.call('num_', sam.received_total) + env.call('num_', dana.received_total), 1,
-    'only one wag was left, so exactly one should have landed');
+    'only one tailwag was left, so exactly one should have landed');
 
   const ephemerals = env.fetchesTo('chat.postEphemeral');
   assert(ephemerals.length >= 1, 'the giver should be told what was skipped');
-  includes(JSON.stringify(ephemerals[ephemerals.length - 1].payload), 'out of wags');
+  includes(JSON.stringify(ephemerals[ephemerals.length - 1].payload), 'out of tailwags');
 });
 
 test('multiple recipients each get the full amount when there is room', () => {
@@ -371,13 +371,13 @@ test('multiple recipients each get the full amount when there is room', () => {
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 3);
 });
 
-test('bots cannot receive wags', () => {
+test('bots cannot receive tailwags', () => {
   const env = freshEnv();
   const b = body(slashCommand(env, '/wag', '<@U08BOT01> you are a wonderful little robot'));
-  includes(b.text, 'Bots do not collect wags');
+  includes(b.text, 'Bots do not collect tailwags');
 });
 
-test('deactivated accounts cannot receive wags', () => {
+test('deactivated accounts cannot receive tailwags', () => {
   const env = freshEnv();
   const b = body(slashCommand(env, '/wag', '<@U08GONE1> thanks for everything you did here'));
   includes(b.text, 'deactivated');
@@ -395,7 +395,7 @@ test('managers draw from their own pool', () => {
   eq(env.call('num_', sam.allowance), 3, 'a peer keeps the peer allowance');
 });
 
-test('allowance refills when the period turns over, and unused wags expire', () => {
+test('allowance refills when the period turns over, and unused tailwags expire', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 4);
@@ -407,7 +407,7 @@ test('allowance refills when the period turns over, and unused wags expire', () 
   eq(env.call('num_', after.given_total), 1, 'lifetime totals must survive the reset');
 });
 
-test('carry-over rolls unused wags forward when switched on', () => {
+test('carry-over rolls unused tailwags forward when switched on', () => {
   const env = freshEnv({ CARRY_OVER_UNUSED: true, MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   env.setNow(new Date('2026-09-23T18:00:00Z'));
@@ -422,7 +422,7 @@ test('the per-recipient cap resets with the period', () => {
   includes(blocked.text, 'already given them');
 
   env.setNow(new Date('2026-09-23T18:00:00Z'));
-  const next = body(slashCommand(env, '/wag', '<@U08SAM01> a brand new week, a brand new wag'));
+  const next = body(slashCommand(env, '/wag', '<@U08SAM01> a brand new week, a brand new tailwag'));
   eq(next.response_type, 'in_channel', 'the cap should have reset with the week');
 });
 
@@ -439,10 +439,10 @@ test('daily mode refills every day', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   for (let i = 0; i < 5; i++) slashCommand(env, '/wag', `<@U08SAM01> good thing number ${i} today`);
   const spent = body(slashCommand(env, '/wag', '<@U08SAM01> one more good thing today'));
-  includes(spent.text, 'out of wags');
+  includes(spent.text, 'out of tailwags');
 
   env.setNow(new Date('2026-09-17T18:00:00Z'));
-  const tomorrow = body(slashCommand(env, '/wag', '<@U08SAM01> a fresh day and a fresh wag'));
+  const tomorrow = body(slashCommand(env, '/wag', '<@U08SAM01> a fresh day and a fresh tailwag'));
   eq(tomorrow.response_type, 'in_channel');
 });
 
@@ -502,11 +502,11 @@ test('giving twice in one period does not double-count the streak', () => {
 suite('Leaderboards');
 // ===========================================================================
 
-test('ranks by wags received, with ties sharing a rank', () => {
+test('ranks by tailwags received, with ties sharing a rank', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/wag', '<@U08SAM01> x2 two wags for sam this week');
-  slashCommand(env, '/wag', '<@U08DANA1> one wag for dana this week');
-  slashCommand(env, '/wag', '<@U08LEE01> one wag for lee this week');
+  slashCommand(env, '/wag', '<@U08SAM01> x2 two tailwags for sam this week');
+  slashCommand(env, '/wag', '<@U08DANA1> one tailwag for dana this week');
+  slashCommand(env, '/wag', '<@U08LEE01> one tailwag for lee this week');
 
   const rows = env.call('leaderboard_', 'period', 10);
   eq(rows[0].user_id, 'U08SAM01');
@@ -516,7 +516,7 @@ test('ranks by wags received, with ties sharing a rank', () => {
   eq(rows[2].rank, 2, 'a tie shares the rank');
 });
 
-test('people with no wags are left off the board', () => {
+test('people with no tailwags are left off the board', () => {
   const env = freshEnv();
   slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice');
   const rows = env.call('leaderboard_', 'period', 10);
@@ -546,15 +546,15 @@ test('the all-time board survives a period rollover', () => {
 suite('The raffle');
 // ===========================================================================
 
-test('each wag received is one entry', () => {
+test('each tailwag received is one entry', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/wag', '<@U08SAM01> x3 three wags means three entries');
+  slashCommand(env, '/wag', '<@U08SAM01> x3 three tailwags means three entries');
   eq(env.call('myRaffleEntries_', 'U08SAM01', env.call('monthKey_')), 3);
 });
 
 test('the per-person entry cap is respected', () => {
   const env = freshEnv({ RAFFLE_MAX_ENTRIES_PER_PERSON: 2, MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/wag', '<@U08SAM01> x3 three wags but only two entries');
+  slashCommand(env, '/wag', '<@U08SAM01> x3 three tailwags but only two entries');
   eq(env.call('myRaffleEntries_', 'U08SAM01', env.call('monthKey_')), 2);
 });
 
@@ -629,7 +629,7 @@ test('last month\'s winner can be excluded from this month\'s drum', () => {
 suite('Emoji and reaction giving');
 // ===========================================================================
 
-test('typing the emoji with a mention in any channel gives a wag', () => {
+test('typing the emoji with a mention in any channel gives a tailwag', () => {
   const env = freshEnv();
   env.call('handleEvent_', {
     type: 'event_callback',
@@ -692,7 +692,7 @@ test('bot messages and edits are ignored', () => {
   eq(env.sheetRows('Ledger').length, 0);
 });
 
-test('reacting with the trigger emoji gives the author a wag, using their message as the reason', () => {
+test('reacting with the trigger emoji gives the author a tailwag, using their message as the reason', () => {
   const env = freshEnv();
   env.call('handleEvent_', {
     type: 'event_callback', team_id: 'T_TEST',
@@ -877,7 +877,7 @@ test('/wags help explains the rules that are actually configured', () => {
   const env = freshEnv({ ALLOWANCE_PEER: 7, MAX_PER_RECIPIENT_PER_PERIOD: 3 });
   const b = body(slashCommand(env, '/wags', 'help'));
   const text = JSON.stringify(b.blocks);
-  includes(text, '7 wags per week');
+  includes(text, '7 tailwags per week');
   includes(text, 'At most *3*');
 });
 
@@ -903,12 +903,12 @@ test('admins see status', () => {
   includes(JSON.stringify(b.blocks), 'Tail Wag — status');
 });
 
-test('grant awards wags without touching anyone\'s allowance', () => {
+test('grant awards tailwags without touching anyone\'s allowance', () => {
   const env = freshEnv({ ADMIN_USER_IDS: 'U08JOSH1' });
   slashCommand(env, '/wag-admin', 'grant <@U08SAM01> 3 for the conference talk');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 3);
   eq(env.call('num_', env.call('getBalance_', 'U08JOSH1', 'josh').remaining), 5,
-    'a grant must not cost the admin their own wags');
+    'a grant must not cost the admin their own tailwags');
 });
 
 test('topup adds to someone\'s remaining allowance', () => {
@@ -1050,7 +1050,7 @@ test('the digest reports last week\'s totals and value breakdown', () => {
 
   const post = env.fetchesTo('chat.postMessage')[0];
   const text = JSON.stringify(post.payload);
-  includes(text, 'Most wags received');
+  includes(text, 'Most tailwags received');
   includes(text, 'Make It Work in the Real World');
 });
 
@@ -1106,7 +1106,7 @@ test('config booleans accept the things humans type into a spreadsheet', () => {
   });
 });
 
-test('a Slack API failure does not lose the wag', () => {
+test('a Slack API failure does not lose the tailwag', () => {
   const env = freshEnv();
   env.state.fetchResponses['chat.postMessage'] = { ok: false, error: 'channel_not_found' };
   const b = body(slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice'));
@@ -1256,7 +1256,7 @@ test('REG-3 writeBalance_ refuses to overwrite a row that moved under it', () =>
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   // Four people, so there are rows to shift.
   ['U08JOSH1', 'U08SAM01', 'U08DANA1', 'U08LEE01'].forEach((id) => env.call('getBalance_', id, id));
-  slashCommand(env, '/wag', '<@U08LEE01> a wag so lee has something to lose');
+  slashCommand(env, '/wag', '<@U08LEE01> a tailwag so lee has something to lose');
   const leeBefore = env.call('num_', env.call('getBalance_', 'U08LEE01', 'lee').received_total);
 
   // Hold a balance object, then delete a row above it the way an admin would.
@@ -1289,7 +1289,7 @@ test('REG-4 an upgraded sheet with a reordered column does not scramble balances
 
 test('REG-5 a month key survives Sheets coercing it to a Date', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/wag', '<@U08SAM01> x3 three wags in the current month');
+  slashCommand(env, '/wag', '<@U08SAM01> x3 three tailwags in the current month');
 
   // Confirm the harness is genuinely exercising the coercion path.
   const raw = env.rawCell('Balances', 2, 1);
@@ -1306,19 +1306,19 @@ test('REG-5 a month key survives Sheets coercing it to a Date', () => {
 
 test('REG-5b the raffle accumulates into one row per person per month', () => {
   const env = freshEnv({ MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/wag', '<@U08SAM01> first wag of the month');
-  slashCommand(env, '/wag', '<@U08SAM01> second wag of the month');
-  slashCommand(env, '/wag', '<@U08SAM01> third wag of the month');
+  slashCommand(env, '/wag', '<@U08SAM01> first tailwag of the month');
+  slashCommand(env, '/wag', '<@U08SAM01> second tailwag of the month');
+  slashCommand(env, '/wag', '<@U08SAM01> third tailwag of the month');
   const rows = env.sheetRows('Raffle').filter((r) => String(r.user_id) === 'U08SAM01');
   eq(rows.length, 1, 'a failed period match would append a new row per give');
   eq(env.call('num_', rows[0].entries), 3);
 });
 
-test('REG-5c daily mode does not hand out unlimited wags', () => {
+test('REG-5c daily mode does not hand out unlimited tailwags', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
   for (let i = 0; i < 5; i++) slashCommand(env, '/wag', `<@U08SAM01> good thing number ${i} today`);
   const sixth = body(slashCommand(env, '/wag', '<@U08SAM01> a sixth thing on the same day'));
-  includes(sixth.text, 'out of wags',
+  includes(sixth.text, 'out of tailwags',
     'a coerced period_key would refill the allowance on every single read');
   eq(env.call('num_', env.call('getBalance_', 'U08SAM01', 'sam').received_total), 5);
 });
@@ -1337,7 +1337,7 @@ test('REG-6 a lock conflict on the emoji path releases the claim and tells the g
   env.call('handleEvent_', event);
   eq(env.sheetRows('Ledger').length, 0);
   const warned = env.fetchesTo('chat.postEphemeral');
-  assert(warned.length >= 1, 'the giver must be told the wag did not land');
+  assert(warned.length >= 1, 'the giver must be told the tailwag did not land');
 
   // Slack's retry of the same event must now succeed.
   env.state.lockHeld = false;
@@ -1347,7 +1347,7 @@ test('REG-6 a lock conflict on the emoji path releases the claim and tells the g
 
 test('REG-7 the digest reports one week, not the whole ledger, in daily mode', () => {
   const env = freshEnv({ ALLOWANCE_PERIOD: 'day', MAX_PER_RECIPIENT_PER_PERIOD: 0 });
-  slashCommand(env, '/wag', '<@U08SAM01> a wag in the current week');
+  slashCommand(env, '/wag', '<@U08SAM01> a tailwag in the current week');
 
   // A stale row from long ago must not be counted as "last week".
   env.call('appendLedger_', {
@@ -1362,7 +1362,7 @@ test('REG-7 the digest reports one week, not the whole ledger, in daily mode', (
   env.call('postDigest_', true);
 
   const post = env.fetchesTo('chat.postMessage')[0];
-  assert(String(JSON.stringify(post.payload)).indexOf('99 wags') === -1,
+  assert(String(JSON.stringify(post.payload)).indexOf('99 tailwags') === -1,
     'the digest must scope to one week, not return every row ever written');
 });
 
@@ -1377,7 +1377,7 @@ test('REG-8 an App Home button with no response_url still answers, via DM', () =
   });
   const dms = env.fetchesTo('chat.postMessage').filter((f) => f.payload.channel === 'U08JOSH1');
   eq(dms.length, 1, 'the button must not be a dead click');
-  includes(JSON.stringify(dms[0].payload), 'Giving a wag');
+  includes(JSON.stringify(dms[0].payload), 'Giving a tailwag');
 });
 
 test('REG-10 prevPeriodKey_ steps back a day even at UTC+13', () => {
@@ -1488,6 +1488,24 @@ test('REG-16 setup refreshes a stale notes column on an upgraded sheet', () => {
 
   const note = String(cfg.getDataRange().getValues()[row][2]);
   eq(note.indexOf('the app we used to be'), -1, `setup should have refreshed the note, got: ${note}`);
+});
+
+test('REG-17 the give headline reads "*1 tailwag* :jackson:" and the word comes from Config', () => {
+  const env = freshEnv();
+  eq(env.call('wagWord_', 1), 'tailwag');
+  eq(env.call('wagWord_', 3), 'tailwags');
+
+  const reply = slashCommand(env, '/wag', '<@U08SAM01> covered two sessions at no notice on Tuesday');
+  const said = JSON.stringify(reply);
+  assert(said.indexOf('*1 tailwag*') !== -1, `headline should say one tailwag, got: ${said.slice(0, 200)}`);
+  assert(/\*1 tailwag\*[^"]*:jackson:/.test(said), `the emoji belongs after the count, got: ${said.slice(0, 200)}`);
+  assert(said.indexOf(':large_orange_circle:') === -1, 'no orange circles anywhere');
+
+  // Renaming the unit is a Config change, not a deploy.
+  env.setConfigValue('UNIT_SINGULAR', 'woof');
+  env.setConfigValue('UNIT_PLURAL', 'woofs');
+  eq(env.call('wagWord_', 1), 'woof');
+  eq(env.call('wagWord_', 2), 'woofs');
 });
 
 test('REG-15 refreshConfigNotes rewrites the notes and leaves the values alone', () => {
