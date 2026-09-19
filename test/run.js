@@ -1576,7 +1576,9 @@ test('REG-20 a give makes one parallel round trip to Slack, not two', () => {
 test('REG-21 an answer past the deadline goes to response_url and the body comes back empty', () => {
   // RESPONSE_DEADLINE_MS 0 means "our share of the budget is already gone",
   // which is what a slow spreadsheet open looks like in production.
-  const env = freshEnv({ RESPONSE_DEADLINE_MS: 0 });
+  // The inline road: the one taken when ASYNC_COMMANDS is off, or when a burst
+  // means a command could not be parked for a trigger.
+  const env = freshEnv({ RESPONSE_DEADLINE_MS: 0, ASYNC_COMMANDS: false });
   env.clearFetches();
 
   const out = env.call('doPost', {
@@ -1606,7 +1608,7 @@ test('REG-22 a refusal past the deadline reaches the user too', () => {
   // The 19 Sep failure: "/wag @lindsey doggos!" was refused for a short reason,
   // the refusal was fast, so it rode the HTTP response — and Slack had already
   // given up. The user saw operation_timeout and no explanation at all.
-  const env = freshEnv({ RESPONSE_DEADLINE_MS: 0, MIN_REASON_CHARS: 12 });
+  const env = freshEnv({ RESPONSE_DEADLINE_MS: 0, MIN_REASON_CHARS: 12, ASYNC_COMMANDS: false });
   env.clearFetches();
 
   const out = env.call('doPost', {
@@ -1717,6 +1719,167 @@ test('REG-28 a warm interval the platform will not accept snaps to one it will',
   // everyMinutes() throws on anything but these, which would break the install.
   [[1, 1], [4, 5], [7, 5], [12, 10], [13, 15], [22, 15], [40, 30], [0, 15], ['', 15]]
     .forEach(([given, want]) => eq(env.call('nearestMinuteInterval_', given), want, `for ${given}`));
+});
+
+
+test('REG-30 a slash command is parked for a trigger and Slack gets an empty body', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: true });
+  env.clearFetches();
+
+  const out = env.call('doPost', {
+    parameter: {
+      k: 'secret123',
+      command: '/wag', text: '<@U08SAM01> covered two sessions at no notice on Tuesday',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+
+  eq(out.getContent(), '', 'Slack is told nothing, which it shows as nothing');
+  eq(env.state.fetches.length, 0, 'no Slack calls on the request path at all');
+  eq(env.state.spreadsheet.getSheetByName('Ledger').getDataRange().getValues().length - 1, 0,
+    'and nothing is counted yet');
+
+  const queued = env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand');
+  eq(queued.length, 1, 'exactly one job is waiting');
+});
+
+test('REG-31 the parked command runs, counts once, and answers on response_url', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: true });
+  env.clearFetches();
+  env.call('doPost', {
+    parameter: {
+      k: 'secret123',
+      command: '/wag', text: '<@U08SAM01> covered two sessions at no notice on Tuesday',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+
+  const uid = env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand')[0].getUniqueId();
+  env.call('runQueuedCommand', { triggerUid: uid });
+
+  eq(env.state.spreadsheet.getSheetByName('Ledger').getDataRange().getValues().length - 1, 1,
+    'counted exactly once');
+
+  const late = env.state.fetches.filter((f) => String(f.url).indexOf('hooks.slack.test') !== -1);
+  eq(late.length, 1, 'the answer goes to response_url');
+  includes(JSON.parse(late[0].params.payload).text, 'tailwag');
+
+  eq(env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand').length, 0,
+    'the one-off trigger cleans itself up');
+  const leftover = Object.keys(env.state.properties).filter((k) => k.indexOf('TW_JOB_') === 0);
+  eq(leftover.length, 0, `no leftover job properties, saw ${leftover}`);
+});
+
+test('REG-32 a refusal takes the same road, and still refuses', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: true });
+  env.clearFetches();
+  env.call('doPost', {
+    parameter: {
+      k: 'secret123', command: '/wag', text: '<@U08SAM01> ty',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+  const uid = env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand')[0].getUniqueId();
+  env.call('runQueuedCommand', { triggerUid: uid });
+
+  const late = env.state.fetches.filter((f) => String(f.url).indexOf('hooks.slack.test') !== -1);
+  eq(late.length, 1, 'the refusal reaches the user rather than vanishing');
+  includes(JSON.parse(late[0].params.payload).text, 'Add a reason');
+});
+
+test('REG-33 when a command cannot be parked it is answered inline instead', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: true });
+  // What a burst past the per-script trigger ceiling looks like.
+  env.run("ScriptApp.newTrigger = function () { throw new Error('too many triggers'); };");
+  env.clearFetches();
+
+  const out = env.call('doPost', {
+    parameter: {
+      k: 'secret123',
+      command: '/wag', text: '<@U08SAM01> covered two sessions at no notice on Tuesday',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+
+  assert(out.getContent().length > 0, 'the answer comes back on the response, late or not');
+  eq(env.state.spreadsheet.getSheetByName('Ledger').getDataRange().getValues().length - 1, 1,
+    'and it still counted, exactly once');
+});
+
+test('REG-34 switching it off restores the inline answer', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: false });
+  const b = body(env.call('doPost', {
+    parameter: {
+      k: 'secret123',
+      command: '/wag', text: '<@U08SAM01> covered two sessions at no notice on Tuesday',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  }));
+  includes(JSON.stringify(b), 'tailwag');
+  eq(env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand').length, 0);
+});
+
+test('REG-35 a job that never ran is swept, so the trigger ceiling cannot fill up', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: true });
+  const send = () => env.call('doPost', {
+    parameter: {
+      k: 'secret123', command: '/wags', text: '',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+  send(); send();
+  eq(env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand').length, 2);
+
+  // Both jobs aged out of the cache without their triggers ever firing.
+  Object.keys(env.state.cache)
+    .filter((k) => k.indexOf('od.v1.job.') === 0)
+    .forEach((k) => { delete env.state.cache[k]; });
+
+  eq(env.call('sweepQueuedCommands_'), 2, 'both dead triggers removed');
+  eq(env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand').length, 0);
+  eq(Object.keys(env.state.properties).filter((k) => k.indexOf('TW_JOB_') === 0).length, 0,
+    'and their properties with them');
+});
+
+test('REG-36 the sweep leaves a job that is still waiting alone', () => {
+  const env = freshEnv({ ASYNC_COMMANDS: true });
+  env.call('doPost', {
+    parameter: {
+      k: 'secret123', command: '/wags', text: '',
+      user_id: 'U08JOSH1', user_name: 'josh',
+      channel_id: 'C_GENERAL', channel_name: 'general',
+      team_id: 'T_TEST', response_url: 'https://hooks.slack.test/r'
+    },
+    postData: { type: 'application/x-www-form-urlencoded', contents: '' }
+  });
+  eq(env.call('sweepQueuedCommands_'), 0, 'nothing to sweep');
+  eq(env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'runQueuedCommand').length, 1);
 });
 
 // ===========================================================================
