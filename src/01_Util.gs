@@ -194,7 +194,8 @@ var CACHE_TTL = {
   STATS: 21600,
   PROFILE: 86400,
   CHANNEL: 86400,
-  MESSAGE_CLAIM: 21600
+  MESSAGE_CLAIM: 21600,
+  JOB: 1800
 };
 
 function cacheGet_(key) {

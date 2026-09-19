@@ -35,6 +35,7 @@ function dailyJob() {
 
     pruneEvents_();
     pruneMessageClaims_();
+    sweepQueuedCommands_();
   } catch (e) {
     logError_('daily_job.failed', 'system', String(e && e.stack || e));
   }
