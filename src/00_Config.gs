@@ -49,7 +49,7 @@ var CONFIG_DEFAULTS = {
   ALLOWANCE_PERIOD: { value: 'week', notes: 'How often everyone\'s tailwags refill: "week" or "day". HeyTaco refills daily; weekly makes each tailwag scarcer. Change it any time — balances roll over to the new cadence on their own.' },
   ALLOWANCE_PEER: { value: 5, notes: 'Tailwags each non-manager gets per period.' },
   ALLOWANCE_MANAGER: { value: 5, notes: 'Tailwags each manager gets per period, from the separate manager pool.' },
-  MAX_PER_RECIPIENT_PER_PERIOD: { value: 2, notes: 'Most tailwags one person may give the same person within a period. 0 = no cap.' },
+  MAX_PER_RECIPIENT_PER_PERIOD: { value: 5, notes: 'Most tailwags one person may give the same person within a period. 0 = no cap. At 5 with a 5-per-week allowance, someone may spend a whole week on one person.' },
   CARRY_OVER_UNUSED: { value: false, notes: 'FALSE = unused tailwags expire at the reset (recommended). TRUE = they roll forward.' },
   WEEK_START_DAY: { value: 'MONDAY', notes: 'Day the weekly allowance resets. Ignored when ALLOWANCE_PERIOD is "day".' },
   TIMEZONE: { value: 'America/Denver', notes: 'Timezone used for day, week and month boundaries.' },
