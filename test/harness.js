@@ -431,12 +431,26 @@ function createEnvironment(options = {}) {
       deleteTrigger(t) { this._triggers = this._triggers.filter((x) => x !== t); },
       newTrigger(fn) {
         const self = this;
+        const spec = { handler: fn, kind: '', everyMinutes: 0 };
         const t = {
           getHandlerFunction: () => fn,
-          timeBased() { return this; },
+          getUniqueId: () => 'trig-' + spec.handler + '-' + (self._triggers.length + 1),
+          _spec: spec,
+          timeBased() { spec.kind = 'time'; return this; },
+          forSpreadsheet() { spec.kind = 'spreadsheet'; return this; },
+          onEdit() { spec.kind = 'edit'; return this; },
           atHour() { return this; },
           nearMinute() { return this; },
           everyDays() { return this; },
+          // Apps Script throws on anything but these, and a throw here means a
+          // broken install in production — so the fake refuses them too.
+          everyMinutes(n) {
+            if ([1, 5, 10, 15, 30].indexOf(n) === -1) {
+              throw new Error('Invalid value for everyMinutes: ' + n);
+            }
+            spec.everyMinutes = n;
+            return this;
+          },
           inTimezone() { return this; },
           create() { self._triggers.push(t); return t; }
         };

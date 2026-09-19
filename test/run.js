@@ -1194,9 +1194,24 @@ test('installTriggers registers exactly one daily job, even when run twice', () 
   const env = freshEnv();
   env.call('installTriggers');
   env.call('installTriggers');
-  const triggers = env.run('ScriptApp.getProjectTriggers()')
-    .filter((t) => t.getHandlerFunction() === 'dailyJob');
-  eq(triggers.length, 1);
+  const all = env.run('ScriptApp.getProjectTriggers()');
+  eq(all.filter((t) => t.getHandlerFunction() === 'dailyJob').length, 1);
+  eq(all.filter((t) => t.getHandlerFunction() === 'onConfigEdit').length, 1);
+  eq(all.filter((t) => t.getHandlerFunction() === 'warmCaches').length, 1);
+});
+
+test('REG-29 the cache warmer is installed on a real interval, and can be switched off', () => {
+  const env = freshEnv({ WARM_INTERVAL_MIN: 13 });
+  env.call('installTriggers');
+  const warm = env.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'warmCaches');
+  eq(warm.length, 1);
+  eq(warm[0]._spec.everyMinutes, 15, '13 is not an interval Apps Script accepts');
+
+  const off = freshEnv({ KEEP_CACHES_WARM: false });
+  off.call('installTriggers');
+  eq(off.run('ScriptApp.getProjectTriggers()')
+    .filter((t) => t.getHandlerFunction() === 'warmCaches').length, 0);
 });
 
 // ===========================================================================
@@ -1630,7 +1645,7 @@ test('REG-23 config is read from the sheet once and then served from cache', () 
   // Six hours, the platform maximum. Every writer drops the entry, so the only
   // thing a short TTL bought was a cold spreadsheet read on almost every
   // command — out of the same three seconds Slack was counting.
-  eq(env.run('CONFIG_CACHE_TTL'), 21600);
+  eq(env.run('CACHE_TTL.CONFIG'), 21600);
 });
 
 
@@ -1650,6 +1665,58 @@ test('REG-24 editing the Config tab by hand drops the cached copy', () => {
   // And it can never break an edit, whatever it is handed.
   env.call('onConfigEdit', null);
   env.call('onConfigEdit', {});
+});
+
+
+test('REG-25 the caches a command reads all outlive the gaps between commands', () => {
+  const env = freshEnv();
+  // Anything a slash command reads on the way to an answer. Ten minutes was
+  // shorter than the gap between two tailwags on a normal day, so every command
+  // was paying for a cold read out of Slack's three-second budget.
+  ['CONFIG', 'ROSTER', 'HEADER', 'BALANCE_INDEX', 'LEADERBOARD', 'STATS'].forEach((k) => {
+    eq(env.run(`CACHE_TTL.${k}`), 21600, `${k} should live the full six hours`);
+  });
+});
+
+test('REG-26 warmCaches fills what the command paths read, and only reads', () => {
+  const env = freshEnv();
+  env.run("cacheDropAll_(); __configCache = null;");
+  eq(env.state.cache['od.v1.roster'], undefined, 'starting cold');
+
+  const ledgerBefore = env.state.spreadsheet.getSheetByName('Ledger').getDataRange().getValues().length;
+  const out = env.call('warmCaches');
+
+  ['config', 'roster', 'balances.index', 'stats'].forEach((k) => {
+    assert(env.state.cache['od.v1.' + k] !== undefined, `${k} should be warm afterwards`);
+  });
+  assert(/Warmed .*config/.test(out), `unexpected summary: ${out}`);
+
+  const ledgerAfter = env.state.spreadsheet.getSheetByName('Ledger').getDataRange().getValues().length;
+  eq(ledgerAfter, ledgerBefore, 'warming must not write anything');
+});
+
+test('REG-27 a hand edit drops what that tab feeds, and nothing else', () => {
+  const env = freshEnv();
+  const fill = () => env.run("getConfigAll(); getRoster_(); balanceIndex_(); globalStats_();");
+  const edit = (tab) => env.call('onConfigEdit', { range: { getSheet: () => ({ getName: () => tab }) } });
+
+  fill();
+  edit('Roster');
+  eq(env.state.cache['od.v1.roster'], undefined, 'a Roster edit drops the roster');
+  assert(env.state.cache['od.v1.config'] !== undefined, 'and leaves the config alone');
+
+  env.run('__configCache = null;'); fill();
+  edit('Ledger');
+  eq(env.state.cache['od.v1.balances.index'], undefined, 'a Ledger edit drops the balance index');
+  eq(env.state.cache['od.v1.stats'], undefined, 'and the stats');
+  assert(env.state.cache['od.v1.config'] !== undefined, 'and still leaves the config alone');
+});
+
+test('REG-28 a warm interval the platform will not accept snaps to one it will', () => {
+  const env = freshEnv();
+  // everyMinutes() throws on anything but these, which would break the install.
+  [[1, 1], [4, 5], [7, 5], [12, 10], [13, 15], [22, 15], [40, 30], [0, 15], ['', 15]]
+    .forEach(([given, want]) => eq(env.call('nearestMinuteInterval_', given), want, `for ${given}`));
 });
 
 // ===========================================================================
