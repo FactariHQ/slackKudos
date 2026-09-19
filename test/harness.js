@@ -427,15 +427,14 @@ function createEnvironment(options = {}) {
 
     ScriptApp: {
       _triggers: [],
-      _uidSeq: 0,
       getProjectTriggers() { return this._triggers.slice(); },
       deleteTrigger(t) { this._triggers = this._triggers.filter((x) => x !== t); },
       newTrigger(fn) {
         const self = this;
-        const spec = { handler: fn, kind: '', everyMinutes: 0, uid: 'trig-' + fn + '-' + (++self._uidSeq) };
+        const spec = { handler: fn, kind: '', everyMinutes: 0 };
         const t = {
           getHandlerFunction: () => fn,
-          getUniqueId: () => spec.uid,
+          getUniqueId: () => 'trig-' + spec.handler + '-' + (self._triggers.length + 1),
           _spec: spec,
           timeBased() { spec.kind = 'time'; return this; },
           forSpreadsheet() { spec.kind = 'spreadsheet'; return this; },
@@ -443,7 +442,6 @@ function createEnvironment(options = {}) {
           atHour() { return this; },
           nearMinute() { return this; },
           everyDays() { return this; },
-          after() { spec.kind = 'after'; return this; },
           // Apps Script throws on anything but these, and a throw here means a
           // broken install in production — so the fake refuses them too.
           everyMinutes(n) {
