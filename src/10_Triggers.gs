@@ -41,27 +41,78 @@ function dailyJob() {
 }
 
 /**
- * Runs whenever someone edits the backing spreadsheet by hand. Its only job is
- * to drop the cached copy of the Config tab, so a knob changed in the sheet
- * takes effect on the next command instead of whenever the cache happens to
- * expire. Installed by installTriggers(); without it, the long config TTL would
- * make hand-editing the Config tab feel broken.
+ * Runs whenever someone edits the backing spreadsheet by hand, and drops
+ * whatever the edited tab feeds. The app drops its own caches when it writes;
+ * this covers the other writer, which is a person with the sheet open. Without
+ * it, the long cache lives would make hand-editing a tab feel broken.
  */
 function onConfigEdit(e) {
   try {
     var name = e && e.range && e.range.getSheet ? e.range.getSheet().getName() : '';
-    if (name && name !== SHEETS.CONFIG) return;
-    cacheDrop_('config');
+    if (!name) return;
+    cacheDrop_('header.' + name);
+
+    if (name === SHEETS.CONFIG) { cacheDrop_('config'); return; }
+    if (name === SHEETS.ROSTER) { cacheDrop_('roster'); return; }
+    if (name === SHEETS.BALANCES || name === SHEETS.LEDGER) {
+      cacheDrop_('balances.index');
+      cacheDrop_('stats');
+      ['period', 'week', 'day', 'month', 'all'].forEach(function (p) {
+        cacheDrop_('leaderboard.' + p);
+      });
+    }
   } catch (err) {
     // An edit must never fail because of us.
   }
 }
 
-/** Installs (or reinstalls) the daily job and the Config-tab watcher. Safe to run repeatedly. */
+/**
+ * Fills the caches the command paths read, so a person never pays for a cold
+ * read. Slack allows three seconds end to end and about a second of that is
+ * Apps Script overhead before this code runs at all; opening the spreadsheet
+ * and reading four tabs does not fit in what is left. On a team that gives a
+ * handful of tailwags a day, every single command was landing on a cold cache.
+ * Running every WARM_INTERVAL_MIN minutes keeps them filled between commands.
+ *
+ * It is pure reading. If it fails, the next command just does the work itself.
+ */
+function warmCaches() {
+  var started = new Date().getTime();
+  var warmed = [];
+  try {
+    getConfigAll(); warmed.push('config');
+    getRoster_(); warmed.push('roster');
+    balanceIndex_(); warmed.push('balances');
+    globalStats_(); warmed.push('stats');
+    leaderboard_('period', 25); warmed.push('leaderboard');
+  } catch (e) {
+    logWarn_('warm.failed', 'system', String(e));
+  }
+  var ms = new Date().getTime() - started;
+  logDebug_('warm.done', 'system', { ms: ms, warmed: warmed });
+  return 'Warmed ' + warmed.join(', ') + ' in ' + ms + 'ms.';
+}
+
+/**
+ * Apps Script accepts only 1, 5, 10, 15 or 30 for everyMinutes(). Anything else
+ * throws, so a number typed into the Config tab is snapped to the nearest one
+ * rather than breaking the install.
+ */
+function nearestMinuteInterval_(mins) {
+  var allowed = [1, 5, 10, 15, 30];
+  var want = num_(mins) || 15;
+  var best = allowed[0];
+  for (var i = 1; i < allowed.length; i++) {
+    if (Math.abs(allowed[i] - want) < Math.abs(best - want)) best = allowed[i];
+  }
+  return best;
+}
+
+/** Installs (or reinstalls) the daily job, the sheet watcher and the cache warmer. Safe to run repeatedly. */
 function installTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     var fn = t.getHandlerFunction();
-    if (fn === 'dailyJob' || fn === 'onConfigEdit') ScriptApp.deleteTrigger(t);
+    if (fn === 'dailyJob' || fn === 'onConfigEdit' || fn === 'warmCaches') ScriptApp.deleteTrigger(t);
   });
   var hour = Math.max(0, Math.min(23, cfgNum('DIGEST_HOUR') || 9));
   ScriptApp.newTrigger('dailyJob')
@@ -80,8 +131,21 @@ function installTriggers() {
     logWarn_('triggers.on_edit_failed', 'system', String(e));
   }
 
-  logInfo_('triggers.installed', 'system', 'dailyJob at ' + hour + ':05 ' + cfgStr('TIMEZONE') + ', onConfigEdit');
-  return 'Daily job installed for ' + hour + ':05 ' + cfgStr('TIMEZONE') + ', plus the Config-tab watcher.';
+  var warmEvery = 0;
+  if (cfgBool('KEEP_CACHES_WARM')) {
+    // Apps Script only offers a few fixed minute intervals.
+    warmEvery = nearestMinuteInterval_(cfgNum('WARM_INTERVAL_MIN'));
+    ScriptApp.newTrigger('warmCaches')
+      .timeBased()
+      .everyMinutes(warmEvery)
+      .create();
+  }
+
+  logInfo_('triggers.installed', 'system',
+    'dailyJob at ' + hour + ':05 ' + cfgStr('TIMEZONE') + ', onConfigEdit' +
+    (warmEvery ? ', warmCaches every ' + warmEvery + 'm' : ''));
+  return 'Daily job installed for ' + hour + ':05 ' + cfgStr('TIMEZONE') +
+    ', plus the sheet watcher' + (warmEvery ? ' and the cache warmer (every ' + warmEvery + ' minutes).' : '.');
 }
 
 /** Removes the scheduled job. */
@@ -89,7 +153,7 @@ function removeTriggers() {
   var n = 0;
   ScriptApp.getProjectTriggers().forEach(function (t) {
     var fn = t.getHandlerFunction();
-    if (fn === 'dailyJob' || fn === 'onConfigEdit') { ScriptApp.deleteTrigger(t); n++; }
+    if (fn === 'dailyJob' || fn === 'onConfigEdit' || fn === 'warmCaches') { ScriptApp.deleteTrigger(t); n++; }
   });
   return 'Removed ' + n + ' trigger(s).';
 }

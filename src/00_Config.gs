@@ -103,6 +103,8 @@ var CONFIG_DEFAULTS = {
   ADMIN_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs allowed to run /wag-admin. Leave blank to allow Slack workspace admins only via explicit listing.' },
   MANAGER_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs that draw from the manager pool. Also settable per-row on the Roster tab.' },
   RESPONSE_DEADLINE_MS: { value: 1200, notes: 'How many milliseconds of our own work may pass before the answer is sent to response_url instead of being returned. Slack allows three seconds end to end and about a second of that is Apps Script overhead we cannot see, so this is deliberately well under 3000. Set it to 0 to send every answer that way.' },
+  KEEP_CACHES_WARM: { value: true, notes: 'TRUE runs a tiny job every WARM_INTERVAL_MIN minutes that re-reads the sheet into the cache, so a slash command never pays for a cold read out of Slack\'s three seconds. Re-run installTriggers() after changing this.' },
+  WARM_INTERVAL_MIN: { value: 15, notes: 'How often the cache warmer runs. Apps Script allows 1, 5, 10, 15 or 30; anything else snaps to the nearest. Re-run installTriggers() after changing this.' },
   PAUSED: { value: false, notes: 'TRUE puts the whole app in read-only mode: balances and leaderboards still work, giving is refused.' },
   LOG_LEVEL: { value: 'INFO', notes: 'DEBUG, INFO, WARN or ERROR. Controls what lands on the Events tab.' }
 };
@@ -110,13 +112,9 @@ var CONFIG_DEFAULTS = {
 /** Cache of the parsed Config tab for the life of one execution. */
 var __configCache = null;
 
-/** How long the parsed Config tab survives in CacheService. Six hours is the
- *  platform maximum; every write to Config drops the entry, so it is safe. */
-var CONFIG_CACHE_TTL = 21600;
-
 /**
  * Returns the whole config as a plain object of raw string values, merged over
- * the defaults. Cached per execution and in CacheService for CONFIG_CACHE_TTL.
+ * the defaults. Cached per execution and in CacheService for CACHE_TTL.CONFIG.
  * Every writer drops the cache, so a long TTL never serves a stale value — and a
  * cold read costs a full spreadsheet open, which on a quiet day was happening on
  * almost every command and eating Slack's three-second budget.
@@ -142,7 +140,7 @@ function getConfigAll() {
     fromSheet[key] = rows[i].value;
     merged[key] = rows[i].value;
   }
-  cachePut_('config', fromSheet, CONFIG_CACHE_TTL);
+  cachePut_('config', fromSheet, CACHE_TTL.CONFIG);
   __configCache = merged;
   return merged;
 }

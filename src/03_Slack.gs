@@ -165,7 +165,7 @@ function fetchUserProfile_(userId) {
     deleted: !!u.deleted,
     tz: u.tz || ''
   };
-  cachePut_('user.' + userId, profile, 86400);
+  cachePut_('user.' + userId, profile, CACHE_TTL.PROFILE);
   return profile;
 }
 
@@ -246,7 +246,7 @@ function resolveChannel_(nameOrId) {
     if (!res.ok || !res.channels) break;
     for (var i = 0; i < res.channels.length; i++) {
       if (String(res.channels[i].name).toLowerCase() === clean) {
-        cachePut_('channel.' + clean, res.channels[i].id, 86400);
+        cachePut_('channel.' + clean, res.channels[i].id, CACHE_TTL.CHANNEL);
         return res.channels[i].id;
       }
     }

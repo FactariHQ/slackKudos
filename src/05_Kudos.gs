@@ -397,7 +397,7 @@ function leaderboard_(period, size) {
     r.rank = rank;
   });
 
-  cachePut_(key, rows.slice(0, 50), 60);
+  cachePut_(key, rows.slice(0, 50), CACHE_TTL.LEADERBOARD);
   return rows.slice(0, limit);
 }
 
@@ -438,7 +438,7 @@ function globalStats_() {
     stats.unspentThisPeriod += num_(b.remaining);
     if (num_(b.spent_this_period) > 0) stats.participationThisPeriod++;
   });
-  cachePut_('stats', stats, 120);
+  cachePut_('stats', stats, CACHE_TTL.STATS);
   return stats;
 }
 

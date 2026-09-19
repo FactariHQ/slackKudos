@@ -172,6 +172,31 @@ function newId_() {
 
 var CACHE_PREFIX = 'od.v1.';
 
+/**
+ * How long each cached thing lives, in seconds. 21600 is the platform maximum.
+ *
+ * These are long on purpose. Every one of them is dropped by whatever writes to
+ * it — a give drops the leaderboards and the stats, a roster sync drops the
+ * roster, a Config edit drops the config — so a long life can never serve a
+ * stale answer. What a short life bought was a cold read of three or four tabs
+ * on almost every command, because a team gives a handful of tailwags a day and
+ * ten minutes is a long time between them. That read came out of the three
+ * seconds Slack allows, which is how a command ends up timing out. warmCaches()
+ * keeps these filled on a schedule so nobody waits for them.
+ */
+var CACHE_TTL = {
+  DEFAULT: 300,
+  CONFIG: 21600,
+  ROSTER: 21600,
+  HEADER: 21600,
+  BALANCE_INDEX: 21600,
+  LEADERBOARD: 21600,
+  STATS: 21600,
+  PROFILE: 86400,
+  CHANNEL: 86400,
+  MESSAGE_CLAIM: 21600
+};
+
 function cacheGet_(key) {
   try {
     var raw = CacheService.getScriptCache().get(CACHE_PREFIX + key);
@@ -183,7 +208,7 @@ function cacheGet_(key) {
 
 function cachePut_(key, value, ttlSeconds) {
   try {
-    CacheService.getScriptCache().put(CACHE_PREFIX + key, JSON.stringify(value), ttlSeconds || 300);
+    CacheService.getScriptCache().put(CACHE_PREFIX + key, JSON.stringify(value), ttlSeconds || CACHE_TTL.DEFAULT);
   } catch (e) {
     // Caching is an optimization; never let it break a request.
   }
@@ -230,6 +255,7 @@ function logEvent_(level, type, actor, detail) {
 function logInfo_(type, actor, detail) { logEvent_('INFO', type, actor, detail); }
 function logWarn_(type, actor, detail) { logEvent_('WARN', type, actor, detail); }
 function logError_(type, actor, detail) { logEvent_('ERROR', type, actor, detail); }
+function logDebug_(type, actor, detail) { logEvent_('DEBUG', type, actor, detail); }
 
 // ---------------------------------------------------------------------------
 // Text helpers

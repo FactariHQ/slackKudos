@@ -116,7 +116,7 @@ function headerOf_(name) {
   var index = {};
   order.forEach(function (h, i) { if (h) index[h] = i; });
   var out = { order: order, index: index };
-  cachePut_('header.' + name, out, 600);
+  cachePut_('header.' + name, out, CACHE_TTL.HEADER);
   return out;
 }
 
@@ -146,7 +146,7 @@ function getRoster_() {
     var id = String(r.user_id || '').trim();
     if (id) map[id] = r;
   });
-  cachePut_('roster', map, 600);
+  cachePut_('roster', map, CACHE_TTL.ROSTER);
   return map;
 }
 
@@ -240,7 +240,7 @@ function balanceIndex_() {
       if (id) idx[id] = i + 2;
     }
   }
-  cachePut_('balances.index', idx, 600);
+  cachePut_('balances.index', idx, CACHE_TTL.BALANCE_INDEX);
   return idx;
 }
 
@@ -504,7 +504,7 @@ function unmarkMessageCounted_(messageTs, giverId) {
 /** Marks a Slack message as already counted. */
 function markMessageCounted_(messageTs, giverId) {
   if (!messageTs) return;
-  cachePut_('msg.' + giverId + '.' + messageTs, 1, 21600);
+  cachePut_('msg.' + giverId + '.' + messageTs, 1, CACHE_TTL.MESSAGE_CLAIM);
   try {
     PropertiesService.getScriptProperties()
       .setProperty('OD_MSG_' + giverId + '_' + messageTs, '1');
