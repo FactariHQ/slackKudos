@@ -1,7 +1,7 @@
 {
-  "name": "tail-wag",
+  "name": "tail-tailwag",
   "version": "1.0.0",
-  "description": "Peer recognition for Slack, backed by a Google Sheet. Scarce wags, leaderboards, badges and a monthly raffle.",
+  "description": "Peer recognition for Slack, backed by a Google Sheet. Scarce tailwags, leaderboards, badges and a monthly raffle.",
   "private": true,
   "scripts": {
     "test": "node test/run.js",

@@ -2,7 +2,7 @@
 
 Peer recognition for Slack, backed by a Google Sheet you own.
 
-Everyone gets a small, fixed number of **wags** to give away each period. Because the supply is scarce and refills on a clock, a wag means something — nobody can spam them, and nobody can hoard them either. Every wag carries a public reason, builds a leaderboard, unlocks badges at milestones, and earns an entry in the monthly raffle.
+Everyone gets a small, fixed number of **tailwags** to give away each period. Because the supply is scarce and refills on a clock, a tailwag means something — nobody can spam them, and nobody can hoard them either. Every tailwag carries a public reason, builds a leaderboard, unlocks badges at milestones, and earns an entry in the monthly raffle.
 
 Built for ACT, and configured out of the box with ACT's five clinical values as the value tags.
 
@@ -10,7 +10,7 @@ Built for ACT, and configured out of the box with ACT's five clinical values as 
 
 ## What it does
 
-**Three ways to give a wag**
+**Three ways to give a tailwag**
 
 ```
 /wag @sam covered two sessions at no notice on Tuesday
@@ -27,9 +27,9 @@ React with :jackson: on someone's message. Their message becomes the reason.
 
 | You type | What happens |
 |---|---|
-| `/wag @sam @dana covered the weekend between them` | One wag each |
-| `/wag @sam x2 carried the whole week` | Two wags to Sam |
-| `/wag @sam :jackson::jackson::jackson: three sessions covered` | Three wags |
+| `/wag @sam @dana covered the weekend between them` | One tailwag each |
+| `/wag @sam x2 carried the whole week` | Two tailwags to Sam |
+| `/wag @sam :jackson::jackson::jackson: three sessions covered` | Three tailwags |
 | `/wag @sam #real-world made it work at the daycare` | Tagged to a company value |
 
 **Looking things up**
@@ -49,17 +49,17 @@ There is also an **App Home tab** — balance, badges with a progress bar, both 
 
 **Rules enforced**
 
-- A fixed allowance per person per period, refilling automatically. Unused wags expire by default.
-- No wags to yourself, to bots, or to deactivated accounts.
+- A fixed allowance per person per period, refilling automatically. Unused tailwags expire by default.
+- No tailwags to yourself, to bots, or to deactivated accounts.
 - A per-recipient cap, so two friends cannot farm each other.
 - A minimum reason length, with the error message showing a good example.
 - Managers draw from a separate pool, so manager praise doesn't crowd out peer praise.
 
 **Rewards**
 
-- **Badges** unlock automatically on lifetime wags received (10 / 25 / 50 / 100 / 250 by default) and on wags *given*, so generosity is recognized too.
-- **Raffle**: every wag received is one entry in that month's drawing, drawn weighted on the 1st and announced in the channel. An occasional contributor still has a real chance; a standout has a proportionally better one.
-- **Streaks** count consecutive periods in which you gave at least one wag.
+- **Badges** unlock automatically on lifetime tailwags received (10 / 25 / 50 / 100 / 250 by default) and on tailwags *given*, so generosity is recognized too.
+- **Raffle**: every tailwag received is one entry in that month's drawing, drawn weighted on the 1st and announced in the channel. An occasional contributor still has a real chance; a standout has a proportionally better one.
+- **Streaks** count consecutive periods in which you gave at least one tailwag.
 
 ---
 
@@ -119,8 +119,8 @@ Then **Install to Workspace**.
 
 ### 4b. Add the emoji
 
-`assets/jackson-emoji.png` and `assets/jackson-wag.gif` are the two workspace emoji this
-runs on: **`:jackson:`**, the trigger, and **`:jackson-wag:`**, a 1.6-second loop for
+`assets/jackson-emoji.png` and `assets/jackson-tailwag.gif` are the two workspace emoji this
+runs on: **`:jackson:`**, the trigger, and **`:jackson-tailwag:`**, a 1.6-second loop for
 threads. Add them at **Settings → Customize → Emoji → Add Custom Emoji**.
 
 Slack's limits are 128×128 and 128KB; both files are inside them. Name yours whatever you
@@ -173,11 +173,11 @@ Everything lives on the **Config** tab, each key with a plain-English note besid
 
 | Key | Default | Notes |
 |---|---|---|
-| `ALLOWANCE_PERIOD` | `week` | `week` or `day`. **HeyTaco refills daily** — set this to `day` to match that rhythm exactly. Switching is safe at any time; balances roll over to the new cadence on the next wag. |
-| `ALLOWANCE_PEER` | `5` | Wags per person per period |
+| `ALLOWANCE_PERIOD` | `week` | `week` or `day`. **HeyTaco refills daily** — set this to `day` to match that rhythm exactly. Switching is safe at any time; balances roll over to the new cadence on the next tailwag. |
+| `ALLOWANCE_PEER` | `5` | Tailwags per person per period |
 | `ALLOWANCE_MANAGER` | `5` | The separate manager pool |
 | `MAX_PER_RECIPIENT_PER_PERIOD` | `2` | `0` removes the cap |
-| `CARRY_OVER_UNUSED` | `FALSE` | `FALSE` makes wags expire, which is what keeps people spending them |
+| `CARRY_OVER_UNUSED` | `FALSE` | `FALSE` makes tailwags expire, which is what keeps people spending them |
 | `MIN_REASON_CHARS` | `12` | |
 | `ANNOUNCE_IN_SOURCE_CHANNEL` | `TRUE` | `FALSE` routes every announcement to `ANNOUNCE_CHANNEL` instead |
 | `DM_RECIPIENT` | `TRUE` | So recognition lands even if they miss the channel |
@@ -206,7 +206,7 @@ Tags resolve on any unambiguous prefix, so `#collab` and `#real` both work. Edit
 | Command | What it does |
 |---|---|
 | `/wag-admin status` | Totals, participation, and the live config at a glance |
-| `/wag-admin grant @user 3 reason` | Award wags from nowhere — doesn't touch anyone's allowance |
+| `/wag-admin grant @user 3 reason` | Award tailwags from nowhere — doesn't touch anyone's allowance |
 | `/wag-admin topup @user 5` | Add to someone's remaining allowance |
 | `/wag-admin set KEY value` | Change a setting without opening the sheet |
 | `/wag-admin keys` | List the settable keys |
@@ -240,7 +240,7 @@ Seven tabs, all readable by a human:
 
 ### Why the hot path never reads the ledger
 
-Slack allows three seconds for a slash command, and Apps Script runs synchronously with no way to reply early. So everything a `/wag` needs — remaining allowance, wags already sent to this person this period, the recipient's running totals and badge state — lives on that person's single Balances row. A give is: a cached config read, two single-row reads, two single-row writes, one append, and one parallel batch of Slack calls. The public announcement is returned as the HTTP response itself rather than as a separate `chat.postMessage`, which saves a whole round trip on every wag. Leaderboards read the Balances tab, never the ledger. The ledger is scanned only by the digest, the feed and the rebuild, none of which are on a clock.
+Slack allows three seconds for a slash command, and Apps Script runs synchronously with no way to reply early. So everything a `/wag` needs — remaining allowance, tailwags already sent to this person this period, the recipient's running totals and badge state — lives on that person's single Balances row. A give is: a cached config read, two single-row reads, two single-row writes, one append, and one parallel batch of Slack calls. The public announcement is returned as the HTTP response itself rather than as a separate `chat.postMessage`, which saves a whole round trip on every tailwag. Leaderboards read the Balances tab, never the ledger. The ledger is scanned only by the digest, the feed and the rebuild, none of which are on a clock.
 
 ---
 
@@ -253,7 +253,7 @@ Slack allows three seconds for a slash command, and Apps Script runs synchronous
 3. **The legacy verification token**, checked as a second factor when `SLACK_VERIFICATION_TOKEN` is set.
 4. **Real HMAC verification**, implemented and tested, which runs automatically if you ever put a proxy in front that copies the signature and timestamp into form fields (`slack_signature`, `slack_timestamp`) — or if you move the app to a host that can read headers.
 
-For an internal recognition app this is a solid bar: an attacker needs the unguessable deployment URL *and* your workspace ID to forge a wag, and every wag is attributed and visible in a public channel. If you later want header-based verification, `verifySlackSignature_` is ready and `SLACK_SIGNING_SECRET` is the only config to fill in.
+For an internal recognition app this is a solid bar: an attacker needs the unguessable deployment URL *and* your workspace ID to forge a tailwag, and every tailwag is attributed and visible in a public channel. If you later want header-based verification, `verifySlackSignature_` is ready and `SLACK_SIGNING_SECRET` is the only config to fill in.
 
 **Rotating the secret:** change `URL_SECRET` on the Config tab, then update the four Request URLs in the Slack app. Do it in that order and the window of exposure is the time between the two steps.
 
@@ -269,7 +269,7 @@ node test/run.js
 
 128 tests, no network and no Google account required. `test/harness.js` recreates enough of the Apps Script runtime — `SpreadsheetApp` with real 1-indexed range semantics, `Utilities.formatDate` with genuine timezone handling, `CacheService`, `PropertiesService`, `LockService`, `UrlFetchApp`, `ScriptApp` — to load the actual `.gs` files into a Node VM. The tests exercise the real code, not a reimplementation of it, and the fake spreadsheet is a real 2D array so off-by-one bugs in the store layer surface exactly as they would in production.
 
-The fake sheet also lies the way Sheets lies: it coerces a string like `"2026-09"` into a Date, turns a leading `=` into a live formula, and strips the apostrophe that forces a cell to text. That matters — a version of this app that passed a naive test suite would have reported zero monthly wags and an empty raffle forever, because Sheets silently reinterprets the period keys.
+The fake sheet also lies the way Sheets lies: it coerces a string like `"2026-09"` into a Date, turns a leading `=` into a live formula, and strips the apostrophe that forces a cell to text. That matters — a version of this app that passed a naive test suite would have reported zero monthly tailwags and an empty raffle forever, because Sheets silently reinterprets the period keys.
 
 Covered: period-key boundaries including the Monday turnover in local time and the New Year straddle; every branch of the give parser; allowance and cap enforcement including partial gives; badge and streak logic; weighted raffle selection with a seeded RNG; emoji and reaction giving including Slack's retry behavior; all four authentication paths including real HMAC verification against Node's crypto; the admin commands; and the failure modes — a held lock, a dead Slack API, a missing token, a wiped cache, a garbage request body.
 
@@ -284,17 +284,17 @@ The final suite, `Regressions — found in adversarial review`, pins eighteen de
 - **Slack retries** any event it doesn't hear back from within three seconds. Every event path claims the event by message timestamp *before* doing work, so a slow run produces a dropped duplicate rather than a double award.
 - **One daily trigger** at `DIGEST_HOUR` handles everything scheduled — Apps Script has no monthly trigger, so the job works out for itself what today is.
 - **Allowances roll forward lazily**, on read, not only on the trigger. A missed trigger can never hand anyone a stale allowance.
-- **Apps Script quotas**: 20,000 UrlFetch calls and 90 minutes of runtime per day on a Workspace account. A wag costs roughly 2–5 fetches. A team of 200 people giving 5 wags a week each uses well under 1% of that.
+- **Apps Script quotas**: 20,000 UrlFetch calls and 90 minutes of runtime per day on a Workspace account. A tailwag costs roughly 2–5 fetches. A team of 200 people giving 5 tailwags a week each uses well under 1% of that.
 
 ## Rolling it out
 
 Recognition apps die when nothing happens in the first week. What works:
 
 1. Start with `VALUE_REQUIRED` off and `MIN_REASON_CHARS` at 12. Add friction later, not on day one.
-2. Seed it. Give ten wags yourself, in public, with reasons long enough to be worth reading. People copy the format they see first.
-3. Say what a wag is *for* in the announcement — "you noticed something someone did that made your job easier" beats "recognize your colleagues".
+2. Seed it. Give ten tailwags yourself, in public, with reasons long enough to be worth reading. People copy the format they see first.
+3. Say what a tailwag is *for* in the announcement — "you noticed something someone did that made your job easier" beats "recognize your colleagues".
 4. Name the prize before the first drawing. An abstract raffle motivates nobody.
-5. Read the value breakdown in the digest after a month. If one value gets 70% of the wags and another gets none, that is information about the business, not about the app.
+5. Read the value breakdown in the digest after a month. If one value gets 70% of the tailwags and another gets none, that is information about the business, not about the app.
 
 ---
 
