@@ -30,8 +30,13 @@ function elapsedMs_() {
  * which is exactly how a fast answer ends up discarded with "operation_timeout".
  */
 function responseLikelyTooLate_() {
-  var used = elapsedMs_();
-  return used > 0 && used > cfgNum('RESPONSE_DEADLINE_MS');
+  // Outside a request — a trigger, a run from the editor — there is no Slack
+  // waiting and nothing to be late for.
+  if (!__reqStarted) return false;
+  // Setting RESPONSE_DEADLINE_MS to 0 makes every slash command answer through
+  // response_url. That is the switch to reach for if Apps Script ever gets slow
+  // enough that returning inline stops being worth trying.
+  return elapsedMs_() >= cfgNum('RESPONSE_DEADLINE_MS');
 }
 
 /**

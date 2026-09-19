@@ -102,7 +102,7 @@ var CONFIG_DEFAULTS = {
   // ---- Administration -----------------------------------------------------
   ADMIN_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs allowed to run /wag-admin. Leave blank to allow Slack workspace admins only via explicit listing.' },
   MANAGER_USER_IDS: { value: '', notes: 'Comma-separated Slack user IDs that draw from the manager pool. Also settable per-row on the Roster tab.' },
-  RESPONSE_DEADLINE_MS: { value: 1200, notes: 'How many milliseconds of our own work may pass before the answer is sent to response_url instead of being returned. Slack allows three seconds end to end and about a second of that is Apps Script overhead we cannot see, so this is deliberately well under 3000.' },
+  RESPONSE_DEADLINE_MS: { value: 1200, notes: 'How many milliseconds of our own work may pass before the answer is sent to response_url instead of being returned. Slack allows three seconds end to end and about a second of that is Apps Script overhead we cannot see, so this is deliberately well under 3000. Set it to 0 to send every answer that way.' },
   PAUSED: { value: false, notes: 'TRUE puts the whole app in read-only mode: balances and leaderboards still work, giving is refused.' },
   LOG_LEVEL: { value: 'INFO', notes: 'DEBUG, INFO, WARN or ERROR. Controls what lands on the Events tab.' }
 };
