@@ -103,8 +103,8 @@ function routeCommand_(cmd) {
   var name = String(cmd.command || '').replace(/^\//, '').toLowerCase();
 
   if (name === 'wag' || name === 'kudos' || name === 'tailwag') return handleWagCommand_(cmd);
-  if (name === 'wags' || name === 'mydots' || name === 'leaderboard') return handleWagsCommand_(cmd);
-  if (name === 'wag-admin' || name === 'wags-admin' || name === 'kudos-admin') return handleAdminCommand_(cmd);
+  if (name === 'wags' || name === 'mywags' || name === 'leaderboard') return handleWagsCommand_(cmd);
+  if (name === 'wag-admin' || name === 'tailwags-admin' || name === 'kudos-admin') return handleAdminCommand_(cmd);
 
   // Unknown command name — most likely a manifest edit that did not match.
   return ephemeral_('`/' + escapeSlack_(name) + '` is not wired up. Known commands: `/wag`, `/wags`, `/wag-admin`.');

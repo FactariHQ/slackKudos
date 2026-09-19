@@ -27,7 +27,7 @@
   .wrap{max-width:980px;margin:0 auto;padding:28px 16px 64px}
   header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
   h1{font-size:26px;margin:0;letter-spacing:-.01em}
-  h1 .wag{color:var(--orange)}
+  h1 .tailwag{color:var(--orange)}
   .updated{color:var(--ink-faint);font-size:13px}
   .tabs{display:flex;gap:6px;margin:18px 0 22px;flex-wrap:wrap}
   .tab{
@@ -70,7 +70,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="wag">🐕</span> Tail Wag</h1>
+    <h1><span class="tailwag">🐕</span> Tail Wag</h1>
     <div class="updated">Updated <?= data.updated ?></div>
   </header>
 
@@ -81,7 +81,7 @@
   </nav>
 
   <div class="stats">
-    <div class="stat"><b><?= data.stats.wagsAllTime ?></b><span>Wags all time</span></div>
+    <div class="stat"><b><?= data.stats.wagsAllTime ?></b><span>Tailwags all time</span></div>
     <div class="stat"><b><?= data.stats.wagsThisPeriod ?></b><span>This <?= data.periodWord ?></span></div>
     <div class="stat"><b><?= data.stats.wagsThisMonth ?></b><span>This month</span></div>
     <div class="stat"><b><?= data.stats.participationThisPeriod ?>/<?= data.stats.people ?></b><span>Gave this <?= data.periodWord ?></span></div>
@@ -90,7 +90,7 @@
   <div class="grid">
     <div>
       <div class="card">
-        <h2>Most wags received</h2>
+        <h2>Most tailwags received</h2>
         <? if (data.rows.length) { ?>
           <? var top = data.rows[0].dots || 1; ?>
           <ol class="board">
@@ -108,7 +108,7 @@
           <? } ?>
           </ol>
         <? } else { ?>
-          <p class="empty">Nobody has picked up a wag yet. Someone has to go first.</p>
+          <p class="empty">Nobody has picked up a tailwag yet. Someone has to go first.</p>
         <? } ?>
       </div>
 
@@ -123,7 +123,7 @@
             </div>
           <? } ?>
         <? } else { ?>
-          <p class="empty">No wags yet.</p>
+          <p class="empty">No tailwags yet.</p>
         <? } ?>
         </div>
       </div>
@@ -143,7 +143,7 @@
           <? } ?>
           </ol>
         <? } else { ?>
-          <p class="empty">No wags given yet.</p>
+          <p class="empty">No tailwags given yet.</p>
         <? } ?>
       </div>
 
@@ -160,7 +160,7 @@
             </div>
           <? } ?>
         <? } else { ?>
-          <p class="empty">No value tags used yet — add <code>#tag</code> to a wag.</p>
+          <p class="empty">No value tags used yet — add <code>#tag</code> to a tailwag.</p>
         <? } ?>
       </div>
       <? } ?>
@@ -169,7 +169,7 @@
       <div class="card">
         <h2><?= data.monthName ?> raffle</h2>
         <p class="empty" style="color:var(--ink-dim)">
-          Every wag received is one entry, drawn on the 1st.
+          Every tailwag received is one entry, drawn on the 1st.
           <? if (data.rafflePrize) { ?><br><strong style="color:var(--ink)"><?= data.rafflePrize ?></strong><? } ?>
         </p>
       </div>

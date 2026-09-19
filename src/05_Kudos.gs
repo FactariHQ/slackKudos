@@ -1,6 +1,6 @@
 /**
  * Tail Wag — 05_Kudos.gs
- * Parsing the give syntax and the transactional core of awarding wags.
+ * Parsing the give syntax and the transactional core of awarding tailwags.
  */
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,7 @@ var RE_VALUE_TAG = /(?:^|\s)#([a-z0-9][a-z0-9\-_]{1,30})(?=\s|$)/gi;
  *   /wag @sam :jackson::jackson: two for the price of one
  *
  * @param {string} text raw Slack text
- * @return {{userIds:Array<string>, wags:number, reason:string, groups:Array<string>,
+ * @return {{userIds:Array<string>, tailwags:number, reason:string, groups:Array<string>,
  *           broadcasts:Array<string>, bareHandles:Array<string>, explicitCount:boolean}}
  */
 function parseGive_(text) {
@@ -132,10 +132,10 @@ function validateGive_(parsed, giverId) {
     return { ok: false, message: 'Tail Wag is paused right now. Nothing is being counted — try again once it is switched back on.' };
   }
   if (parsed.broadcasts.length) {
-    return { ok: false, message: 'Wags go to people, not to `@channel` or `@here`. Tag the individuals you mean.' };
+    return { ok: false, message: 'Tailwags go to people, not to `@channel` or `@here`. Tag the individuals you mean.' };
   }
   if (parsed.groups.length) {
-    return { ok: false, message: 'User groups are not supported — tag people individually so each wag lands on a person.' };
+    return { ok: false, message: 'User groups are not supported — tag people individually so each tailwag lands on a person.' };
   }
   if (!parsed.userIds.length) {
     if (parsed.bareHandles.length) {
@@ -148,20 +148,20 @@ function validateGive_(parsed, giverId) {
     return { ok: false, message: 'That is ' + parsed.userIds.length + ' people in one go — the limit is ' + maxRecipients + '. Split it up.' };
   }
   if (!cfgBool('ALLOW_SELF_KUDOS') && parsed.userIds.length === 1 && parsed.userIds[0] === giverId) {
-    return { ok: false, message: 'No wags for yourself. Nice try though.' };
+    return { ok: false, message: 'No tailwags for yourself. Nice try though.' };
   }
   if (cfgBool('VALUES_ENABLED') && cfgBool('VALUE_REQUIRED') && !parsed.value) {
     var tagHelp = valueList().map(function (v) { return '`#' + v.tag + '`'; }).join('  ');
     return {
       ok: false,
-      message: 'Tag the value it reflects, so the wag says something about how we work:\n' + tagHelp
+      message: 'Tag the value it reflects, so the tailwag says something about how we work:\n' + tagHelp
     };
   }
   var minReason = cfgNum('MIN_REASON_CHARS');
   if (parsed.reason.length < minReason) {
     return {
       ok: false,
-      message: 'Add a reason — at least ' + minReason + ' characters. The reason is the part people remember; the wag is just the receipt.\n' +
+      message: 'Add a reason — at least ' + minReason + ' characters. The reason is the part people remember; the tailwag is just the receipt.\n' +
         'Try `/wag ' + mention_(parsed.userIds[0]) + ' covered two sessions at short notice on Tuesday`'
     };
   }
@@ -176,9 +176,9 @@ function validateGive_(parsed, giverId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Awards wags. Runs under the script lock so two commands cannot spend the same
+ * Awards tailwags. Runs under the script lock so two commands cannot spend the same
  * allowance twice. Partial success is normal and expected: if someone tags three
- * people but only has two wags left, the first two land and the third is
+ * people but only has two tailwags left, the first two land and the third is
  * reported back as skipped.
  *
  * @param {{giverId:string, giverName:string, userIds:Array<string>, wagsEach:number,
@@ -223,7 +223,7 @@ function giveWags_(req) {
       var want = req.wagsEach;
 
       if (!allowSelf && rid === req.giverId) {
-        result.skipped.push({ userId: rid, reason: 'No wags for yourself.' });
+        result.skipped.push({ userId: rid, reason: 'No tailwags for yourself.' });
         continue;
       }
       if (rosterBlocks_(rid)) {
@@ -237,7 +237,7 @@ function giveWags_(req) {
         continue;
       }
       if (!allowBots && profile && profile.is_bot) {
-        result.skipped.push({ userId: rid, reason: 'Bots do not collect wags.' });
+        result.skipped.push({ userId: rid, reason: 'Bots do not collect tailwags.' });
         continue;
       }
 
@@ -258,7 +258,7 @@ function giveWags_(req) {
       // Remaining allowance.
       var remaining = num_(giverBal.remaining);
       if (remaining <= 0) {
-        result.skipped.push({ userId: rid, reason: 'You are out of wags until the weekly reset.' });
+        result.skipped.push({ userId: rid, reason: 'You are out of tailwags until the weekly reset.' });
         continue;
       }
       if (want > remaining) want = remaining;
@@ -269,7 +269,7 @@ function giveWags_(req) {
       // When self-kudos is allowed, giver and receiver are the SAME sheet row.
       // Reading it a second time would produce a second object, and the final
       // write of giverBal would then silently discard everything credited to
-      // receiverBal — the wags, the badge state, all of it.
+      // receiverBal — the tailwags, the badge state, all of it.
       var receiverBal = isSelf ? giverBal : getBalance_(rid, receiverName, false);
       if (!isSelf) {
         rollForward_(receiverBal);
@@ -329,7 +329,7 @@ function giveWags_(req) {
     var giverFresh = result.spent > 0 ? awardBadges_(giverBal) : [];
     if (result.spent > 0) {
       upsertRoster_(req.giverId, { display_name: req.giverName });
-      // Giving streak: consecutive periods in which they gave at least one wag.
+      // Giving streak: consecutive periods in which they gave at least one tailwag.
       if (cfgBool('STREAKS_ENABLED')) {
         var curPeriod = periodKey_();
         var lastGave = String(giverBal.last_gave_period || '');
@@ -367,7 +367,7 @@ function giveWags_(req) {
  * Leaderboard for a period, read from the denormalized Balances tab.
  * @param {string} period 'week' | 'month' | 'all'
  * @param {number=} size
- * @return {Array<{user_id:string,name:string,wags:number,rank:number}>}
+ * @return {Array<{user_id:string,name:string,tailwags:number,rank:number}>}
  */
 function leaderboard_(period, size) {
   var key = 'leaderboard.' + period;
@@ -462,11 +462,11 @@ function recentReasons_(limit, filter) {
 }
 
 /**
- * How wags were distributed across the company values in a period.
+ * How tailwags were distributed across the company values in a period.
  * Reads the ledger, so it is used by digests and dashboards, never by a slash
  * command that has to answer inside three seconds.
  * @param {{week_key?:string, month_key?:string}} filter
- * @return {Array<{tag:string,label:string,emoji:string,wags:number,share:number}>}
+ * @return {Array<{tag:string,label:string,emoji:string,tailwags:number,share:number}>}
  */
 function valueBreakdown_(filter) {
   if (!cfgBool('VALUES_ENABLED')) return [];

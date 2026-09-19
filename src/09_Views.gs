@@ -23,8 +23,8 @@ function buildHomeView_(userId) {
   var word = periodWord_();
   var blocks = [];
 
-  // --- Your wags -----------------------------------------------------------
-  blocks.push(headerBlock_('🐕 Your wags'));
+  // --- Your tailwags -----------------------------------------------------------
+  blocks.push(headerBlock_('🐕 Your tailwags'));
   blocks.push(sectionBlock_(
     '*' + num_(bal.remaining) + ' of ' + num_(bal.allowance) + '* left to give this ' + word + '  ' +
     wagRun_(num_(bal.remaining)) +
@@ -75,7 +75,7 @@ function buildHomeView_(userId) {
       return rankEmoji_(i) + ' ' + mention_(r.user_id) + ' — ' + r.dots +
         (r.user_id === userId ? '  ← you' : '');
     }).join('\n'))
-    : contextBlock_('_Nobody has picked up a wag this ' + word + ' yet._'));
+    : contextBlock_('_Nobody has picked up a tailwag this ' + word + ' yet._'));
 
   var monthRows = leaderboard_('month', 5);
   if (monthRows.length) {

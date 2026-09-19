@@ -235,9 +235,15 @@ function logError_(type, actor, detail) { logEvent_('ERROR', type, actor, detail
 // Text helpers
 // ---------------------------------------------------------------------------
 
-/** Pluralizes "wag"/"wags". */
+/**
+ * The name for one unit of recognition, singular or plural. The word lives in
+ * UNIT_SINGULAR / UNIT_PLURAL on the Config tab, so renaming what a give is
+ * called is a config change rather than a deploy.
+ */
 function wagWord_(n) {
-  return Math.abs(n) === 1 ? 'wag' : 'wags';
+  var one = cfgStr('UNIT_SINGULAR') || 'tailwag';
+  var many = cfgStr('UNIT_PLURAL') || 'tailwags';
+  return Math.abs(n) === 1 ? one : many;
 }
 
 /**

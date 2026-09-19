@@ -83,7 +83,7 @@ function handleMessageEvent_(event) {
     result = giveWags_(req);
   } catch (e) {
     // A lock conflict is transient. Release the claim so Slack's retry of this
-    // same event can succeed — otherwise the wag is lost silently and the giver
+    // same event can succeed — otherwise the tailwag is lost silently and the giver
     // is never told, which is the worst possible failure for a trust system.
     if (String(e.message || e).indexOf('BUSY') !== -1) {
       unmarkMessageCounted_(event.ts, event.user);
@@ -94,7 +94,7 @@ function handleMessageEvent_(event) {
     }
     logError_('emoji.failed', event.user, String(e && e.stack || e));
     postEphemeral_(event.channel, event.user,
-      'Something went wrong recording that wag. Nothing was counted — try again.');
+      'Something went wrong recording that tailwag. Nothing was counted — try again.');
     return emptyOut_();
   }
 
@@ -104,7 +104,7 @@ function handleMessageEvent_(event) {
     return emptyOut_();
   }
 
-  logInfo_('wag.given', event.user, {
+  logInfo_('tailwag.given', event.user, {
     to: result.awarded.map(function (a) { return a.userId; }),
     dots: result.spent, source: 'emoji'
   });
@@ -177,7 +177,7 @@ function handleReactionEvent_(event) {
     return emptyOut_();
   }
 
-  logInfo_('wag.given', giverId, { to: [receiverId], dots: result.spent, source: 'reaction' });
+  logInfo_('tailwag.given', giverId, { to: [receiverId], dots: result.spent, source: 'reaction' });
   var msg = buildAwardMessage_(result, req);
   postMessage_(event.item.channel, msg.text, msg.blocks, event.item.ts);
   dispatchSideMessages_(result, req);
@@ -279,7 +279,7 @@ function handleInteraction_(payload) {
             buttonElement_('This ' + periodWord_(), 'lb_period', 'period', period === 'period' ? 'primary' : undefined),
             buttonElement_('This month', 'lb_month', 'month', period === 'month' ? 'primary' : undefined),
             buttonElement_('All time', 'lb_all', 'all', period === 'all' ? 'primary' : undefined),
-            buttonElement_('My wags', 'show_balance', 'me')
+            buttonElement_('My tailwags', 'show_balance', 'me')
           ])
         ]));
         return emptyOut_();

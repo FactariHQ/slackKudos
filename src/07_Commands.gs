@@ -9,7 +9,7 @@
  * and writes, one append, and a single parallel batch of Slack calls. The public
  * announcement is returned as the HTTP response itself (`response_type:
  * in_channel`) rather than as a separate chat.postMessage, which saves an entire
- * round trip on every wag.
+ * round trip on every tailwag.
  */
 
 /**
@@ -47,21 +47,21 @@ function handleWagCommand_(cmd) {
     result = giveWags_(req);
   } catch (e) {
     if (String(e.message || e).indexOf('BUSY') !== -1) {
-      return ephemeral_('Someone else is giving a wag this exact second. Try again — it will go through.');
+      return ephemeral_('Someone else is giving a tailwag this exact second. Try again — it will go through.');
     }
-    logError_('wag.failed', cmd.user_id, String(e && e.stack || e));
-    return ephemeral_('Something went wrong writing that wag. Nothing was counted — try again, and tell an admin if it keeps happening.');
+    logError_('tailwag.failed', cmd.user_id, String(e && e.stack || e));
+    return ephemeral_('Something went wrong writing that tailwag. Nothing was counted — try again, and tell an admin if it keeps happening.');
   }
 
   if (!result.awarded.length) {
     var why = result.skipped.map(function (s) {
       return mention_(s.userId) + ' — ' + s.reason;
     }).join('\n');
-    return ephemeral_('No wags went out.\n' + (why || 'Nothing to do.') +
+    return ephemeral_('No tailwags went out.\n' + (why || 'Nothing to do.') +
       '\n\nYou have ' + result.remaining + ' of ' + result.allowance + ' left this ' + periodWord_() + '.');
   }
 
-  logInfo_('wag.given', cmd.user_id, {
+  logInfo_('tailwag.given', cmd.user_id, {
     to: result.awarded.map(function (a) { return a.userId; }),
     dots: result.spent,
     value: req.valueTag,
@@ -148,7 +148,7 @@ function handleWagsCommand_(cmd) {
     return ephemeral_(help.text, help.blocks);
   }
 
-  // Someone else's wags: /wags @sam
+  // Someone else's tailwags: /wags @sam
   var parsed = parseGive_(text);
   if (parsed.userIds.length === 1 && !/(leader|board|top|month|week|day|all|given|give)/.test(lower)) {
     var targetId = parsed.userIds[0];
@@ -165,7 +165,7 @@ function handleWagsCommand_(cmd) {
         return rankEmoji_(i) + ' *' + ordinal_(r.rank) + '*  ' + mention_(r.user_id) + '  —  ' +
           r.dots + ' given';
       }).join('\n'))
-      : sectionBlock_('_Nobody has given a wag yet._'));
+      : sectionBlock_('_Nobody has given a tailwag yet._'));
     return ephemeral_('Most generous', gblocks);
   }
 
@@ -202,7 +202,7 @@ function handleWagsCommand_(cmd) {
   }
 
   if (/^(feed|recent|latest|why)$/.test(lower)) {
-    return ephemeral_('Recent wags', buildFeedBlocks_(10));
+    return ephemeral_('Recent tailwags', buildFeedBlocks_(10));
   }
 
   if (/^(raffle|entries|drawing)$/.test(lower)) {
@@ -213,7 +213,7 @@ function handleWagsCommand_(cmd) {
   return ephemeral_(h.text, h.blocks);
 }
 
-/** Another person's public-facing wag card. */
+/** Another person's public-facing tailwag card. */
 function buildOtherBalanceCard_(bal, userId) {
   var badges = badgesFor_(bal);
   var lines = [];
@@ -234,16 +234,16 @@ function buildOtherBalanceCard_(bal, userId) {
       return '> ' + escapeSlack_(truncate_(r.reason, 160)) + '  _— ' + escapeSlack_(r.giver_name) + '_';
     }).join('\n')));
   }
-  return { text: displayName_(userId) + ': ' + num_(bal.received_total) + ' wags all-time', blocks: blocks };
+  return { text: displayName_(userId) + ': ' + num_(bal.received_total) + ' ' + wagWord_(num_(bal.received_total)) + ' all-time', blocks: blocks };
 }
 
 /** The recent-reasons feed. */
 function buildFeedBlocks_(limit) {
   var rows = recentReasons_(limit || 10);
-  if (!rows.length) return [sectionBlock_('_No wags yet._')];
+  if (!rows.length) return [sectionBlock_('_No tailwags yet._')];
   var values = {};
   valueList().forEach(function (v) { values[v.tag] = v; });
-  return [headerBlock_('🐕 Recent wags')].concat(rows.map(function (r) {
+  return [headerBlock_('🐕 Recent tailwags')].concat(rows.map(function (r) {
     var v = values[r.value_tag];
     return contextBlock_(
       (v ? v.emoji + ' ' : '') + mention_(r.giver_id) + ' → ' + mention_(r.receiver_id) +
@@ -268,7 +268,7 @@ function buildRaffleStatusBlocks_(userId) {
       ' out of *' + total + '* in the drum — about *' + Math.round(odds * 100) + '%* of the tickets.' +
       (cfgStr('RAFFLE_PRIZE') ? '\nPrize: *' + escapeSlack_(cfgStr('RAFFLE_PRIZE')) + '*' : ''))
   ];
-  blocks.push(contextBlock_('Every wag you receive is one entry. Drawn on the 1st, then the drum resets.' +
+  blocks.push(contextBlock_('Every tailwag you receive is one entry. Drawn on the 1st, then the drum resets.' +
     (cfgNum('RAFFLE_MAX_ENTRIES_PER_PERSON') > 0
       ? ' Capped at ' + cfgNum('RAFFLE_MAX_ENTRIES_PER_PERSON') + ' entries each.' : '')));
   return blocks;
@@ -399,7 +399,7 @@ function handleAdminCommand_(cmd) {
     default:
       return ephemeral_('Admin commands', [sectionBlock_(
         '`/wag-admin status` — health, totals, config at a glance\n' +
-        '`/wag-admin grant @user 3 reason` — award wags outside anyone\'s allowance\n' +
+        '`/wag-admin grant @user 3 reason` — award tailwags outside anyone\'s allowance\n' +
         '`/wag-admin topup @user 5` — add to someone\'s remaining allowance\n' +
         '`/wag-admin set KEY value` — change a setting\n' +
         '`/wag-admin keys` — list settable keys\n' +
@@ -414,7 +414,7 @@ function handleAdminCommand_(cmd) {
   }
 }
 
-/** Awards wags from nowhere — an admin grant, outside the allowance system. */
+/** Awards tailwags from nowhere — an admin grant, outside the allowance system. */
 function adminGrant_(userIds, dots, reason, adminId) {
   return withLock_(function () {
     var out = [];
@@ -475,7 +475,7 @@ function buildAdminStatusBlocks_() {
     headerBlock_('🐕 Tail Wag — status'),
     fieldsBlock_([
       ['People tracked', String(stats.people)],
-      ['Wags all-time', String(stats.wagsAllTime)],
+      ['Tailwags all-time', String(stats.wagsAllTime)],
       ['This ' + word, String(stats.wagsThisPeriod)],
       ['This month', String(stats.wagsThisMonth)],
       ['Unspent right now', String(stats.unspentThisPeriod)],

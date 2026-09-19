@@ -30,7 +30,7 @@ function dailyJob() {
       logInfo_('digest.scheduled', 'system', res.ok ? 'posted' : res.error);
     }
 
-    // Keep the roster fresh so new hires have a balance before their first wag.
+    // Keep the roster fresh so new hires have a balance before their first tailwag.
     if (dow === startDow) syncRosterFromSlack_();
 
     pruneEvents_();
@@ -124,7 +124,7 @@ function postDigest_(force) {
 // ---------------------------------------------------------------------------
 
 /**
- * Runs the drawing for a period. Selection is weighted by entries: one wag
+ * Runs the drawing for a period. Selection is weighted by entries: one tailwag
  * received is one ticket in the drum, so an occasional contributor still has a
  * real chance while a standout has a proportionally better one.
  *

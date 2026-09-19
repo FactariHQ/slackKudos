@@ -7,7 +7,7 @@
  * ------------
  * Slack gives a slash command three seconds to respond, so nothing on the hot
  * path is allowed to scan the whole ledger. Everything a /wag needs — the
- * giver's remaining allowance, how many wags they have already sent this
+ * giver's remaining allowance, how many tailwags they have already sent this
  * recipient this week, the recipient's running totals and badge state — lives
  * denormalized on that person's single row of the Balances tab. The Ledger tab
  * is append-only and exists for audit, export and the reasons feed.
@@ -410,13 +410,13 @@ function parseJson_(v, fallback) {
   }
 }
 
-/** How many wags this giver has already sent this recipient during the current week. */
+/** How many tailwags this giver has already sent this recipient during the current week. */
 function givenToThisWeek_(bal, receiverId) {
   var map = parseJson_(bal.given_to_json, {});
   return num_(map[receiverId]);
 }
 
-/** Records wags against the per-recipient weekly cap. */
+/** Records tailwags against the per-recipient weekly cap. */
 function bumpGivenTo_(bal, receiverId, dots) {
   var map = parseJson_(bal.given_to_json, {});
   map[receiverId] = num_(map[receiverId]) + dots;
@@ -477,7 +477,7 @@ function queryLedger_(f) {
   return out;
 }
 
-/** True when this Slack message has already produced wags (emoji idempotency). */
+/** True when this Slack message has already produced tailwags (emoji idempotency). */
 function messageAlreadyCounted_(messageTs, giverId) {
   if (!messageTs) return false;
   var key = 'msg.' + giverId + '.' + messageTs;

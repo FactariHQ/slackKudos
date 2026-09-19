@@ -6,13 +6,13 @@
  * near the transaction, and so the tests can assert on message content.
  */
 
-/** Playful openers for a public award. Picked by hash so a single wag reads the same everywhere. */
+/** Playful openers for a public award. Picked by hash so a single tailwag reads the same everywhere. */
 var AWARD_OPENERS = [
-  'Wag incoming',
-  'That earned a wag',
+  'Tailwag incoming',
+  'That earned a tailwag',
   'Someone noticed',
   'Caught doing something right',
-  'Wag dispensed',
+  'Tailwag dispensed',
   'Recognition, delivered'
 ];
 
@@ -40,8 +40,8 @@ function buildAwardMessage_(result, req) {
     ? result.awarded[0].dots : null;
 
   var headline = mention_(req.giverId) + ' gave ' + who + ' ' +
-    (perEach ? wagRun_(perEach) + ' *' + perEach + ' ' + wagWord_(perEach) + ' each*'
-      : wagRun_(totalWags) + ' *' + totalWags + ' ' + wagWord_(totalWags) + '*');
+    (perEach ? '*' + perEach + ' ' + wagWord_(perEach) + ' each* ' + wagRun_(perEach)
+      : '*' + totalWags + ' ' + wagWord_(totalWags) + '* ' + wagRun_(totalWags));
 
   lines.push(headline);
   lines.push('> ' + escapeSlack_(truncate_(req.reason, 900)));
@@ -63,12 +63,12 @@ function buildAwardMessage_(result, req) {
   result.awarded.forEach(function (a) {
     (a.badges || []).forEach(function (b) {
       badgeLines.push(b.emoji + ' ' + mention_(a.userId) + ' unlocked *' + escapeSlack_(b.label) +
-        '* — ' + b.threshold + ' wags received.');
+        '* — ' + b.threshold + ' ' + wagWord_(b.threshold) + ' received.');
     });
   });
   (result.giverBadges || []).forEach(function (b) {
     badgeLines.push(b.emoji + ' ' + mention_(req.giverId) + ' unlocked *' + escapeSlack_(b.label) +
-      '* — ' + b.threshold + ' wags given.');
+      '* — ' + b.threshold + ' ' + wagWord_(b.threshold) + ' given.');
   });
   if (badgeLines.length) {
     blocks.push(dividerBlock_());
@@ -121,7 +121,7 @@ function buildGiverReceipt_(result, req) {
     (result.remaining === 0 ? '. Refills ' + periodResetText_() + '.' : '.'));
 
   if (result.pool === 'manager') {
-    lines.push('_Drawn from the manager pool, so peer wags stay peer._');
+    lines.push('_Drawn from the manager pool, so peer tailwags stay peer._');
   }
 
   return { text: stripMrkdwn_(lines.join(' ')), blocks: [sectionBlock_(lines.join('\n'))] };
@@ -135,7 +135,7 @@ function buildRecipientDm_(award, req, channelId, permalink) {
   lines.push('> ' + escapeSlack_(truncate_(req.reason, 900)));
   var tail = [];
   if (req.value) tail.push(req.value.emoji + ' ' + escapeSlack_(req.value.label));
-  tail.push(award.receivedTotal + ' wags all-time');
+  tail.push(award.receivedTotal + ' ' + wagWord_(award.receivedTotal) + ' all-time');
   if (cfgBool('RAFFLE_ENABLED') && award.raffleEntriesTotal) {
     tail.push(award.raffleEntriesTotal + ' raffle ' + (award.raffleEntriesTotal === 1 ? 'entry' : 'entries') + ' this month');
   }
@@ -145,7 +145,7 @@ function buildRecipientDm_(award, req, channelId, permalink) {
   var blocks = [sectionBlock_(lines.join('\n'))];
   (award.badges || []).forEach(function (b) {
     blocks.push(sectionBlock_(b.emoji + ' *New badge: ' + escapeSlack_(b.label) + '* — ' +
-      b.threshold + ' wags received.'));
+      b.threshold + ' ' + wagWord_(b.threshold) + ' received.'));
   });
   return { text: stripMrkdwn_(lines[0]) + ' — ' + truncate_(req.reason, 150), blocks: blocks };
 }
@@ -164,13 +164,13 @@ function buildBalanceCard_(bal, userId) {
   ];
 
   var blocks = [
-    sectionBlock_('*Your wags*  ' + wagRun_(num_(bal.remaining))),
+    sectionBlock_('*Your tailwags*  ' + wagRun_(num_(bal.remaining))),
     fieldsBlock_(fields)
   ];
 
   var context = [];
   if (num_(bal.remaining) === 0) {
-    context.push('Out of wags — refills ' + periodResetText_() + '.');
+    context.push('Out of tailwags — refills ' + periodResetText_() + '.');
   }
   if (cfgBool('STREAKS_ENABLED') && num_(bal.streak) > 1) {
     context.push(':fire: ' + num_(bal.streak) + '-' + word + ' giving streak');
@@ -193,7 +193,7 @@ function buildBalanceCard_(bal, userId) {
       '* — ' + next.need + ' more ' + wagWord_(next.need) + ' to go.'));
   }
 
-  return { text: 'You have ' + num_(bal.remaining) + ' of ' + num_(bal.allowance) + ' wags left this ' + word + '.', blocks: blocks };
+  return { text: 'You have ' + num_(bal.remaining) + ' of ' + num_(bal.allowance) + ' ' + wagWord_(num_(bal.allowance)) + ' left this ' + word + '.', blocks: blocks };
 }
 
 /** A leaderboard card. */
@@ -202,7 +202,7 @@ function buildLeaderboardCard_(period, rows, viewerId) {
   var blocks = [headerBlock_('🐕 Tail Wag — ' + title)];
 
   if (!rows.length) {
-    blocks.push(sectionBlock_('_Nobody has picked up a wag yet ' +
+    blocks.push(sectionBlock_('_Nobody has picked up a tailwag yet ' +
       (period === 'all' ? '' : 'this ' + (period === 'month' ? 'month' : periodWord_())) +
       '. Someone has to go first._'));
     return { text: 'Tail Wag leaderboard — nothing yet.', blocks: blocks };
@@ -222,7 +222,7 @@ function buildLeaderboardCard_(period, rows, viewerId) {
     for (var i = 0; i < full.length; i++) if (full[i].user_id === viewerId) { mine = full[i]; break; }
     blocks.push(contextBlock_(mine
       ? 'You: ' + ordinal_(mine.rank) + ' with ' + mine.dots + ' ' + wagWord_(mine.dots)
-      : 'You have not received a wag ' + (period === 'all' ? 'yet' : 'in this period') + ' — plenty of time.'));
+      : 'You have not received a tailwag ' + (period === 'all' ? 'yet' : 'in this period') + ' — plenty of time.'));
   }
 
   return { text: 'Tail Wag leaderboard — ' + title, blocks: blocks };
@@ -238,7 +238,7 @@ function buildDigest_(periodLabel, rows, givers, stats, values) {
   ];
 
   if (rows.length) {
-    blocks.push(sectionBlock_('*Most wags received*\n' + rows.slice(0, 5).map(function (r, i) {
+    blocks.push(sectionBlock_('*Most tailwags received*\n' + rows.slice(0, 5).map(function (r, i) {
       return rankEmoji_(i) + ' ' + mention_(r.user_id) + ' — ' + r.dots;
     }).join('\n')));
   }
@@ -255,10 +255,10 @@ function buildDigest_(periodLabel, rows, givers, stats, values) {
   }
 
   blocks.push(dividerBlock_());
-  blocks.push(contextBlock_('Everyone\'s wags have refilled. `/wag @someone why` to spend them — ' +
+  blocks.push(contextBlock_('Everyone\'s tailwags have refilled. `/wag @someone why` to spend them — ' +
     'they expire at the end of the ' + periodWord_() + '.'));
 
-  return { text: 'Tail Wag — ' + periodLabel + ': ' + stats.dots + ' wags given.', blocks: blocks };
+  return { text: 'Tail Wag — ' + periodLabel + ': ' + stats.dots + ' ' + wagWord_(stats.dots) + ' given.', blocks: blocks };
 }
 
 /** The monthly raffle announcement. */
@@ -272,7 +272,7 @@ function buildRaffleAnnouncement_(period, winners, totalEntries, entrantCount) {
     }).join('\n') + (prize ? '\n\nPrize: *' + escapeSlack_(prize) + '*' : ''))
   ];
   blocks.push(contextBlock_('Drawn from ' + totalEntries + ' entries across ' + entrantCount +
-    ' people. Every wag you receive is one entry — the drum resets today.'));
+    ' people. Every tailwag you receive is one entry — the drum resets today.'));
   return {
     text: 'Tail Wag raffle ' + period + ': ' + winners.map(function (w) { return w.name; }).join(', '),
     blocks: blocks
@@ -287,8 +287,8 @@ function buildHelpCard_(userId) {
   var trigger = ':' + cfgStr('EMOJI_TRIGGER') + ':';
 
   var lines = [];
-  lines.push('*Giving a wag*');
-  lines.push('`/wag @someone what they did` — the reason is the point; the wag is the receipt.');
+  lines.push('*Giving a tailwag*');
+  lines.push('`/wag @someone what they did` — the reason is the point; the tailwag is the receipt.');
   lines.push('`/wag @sam @dana x2 covered the whole weekend` — several people, more than one each.');
   if (cfgBool('ALLOW_EMOJI_GIVING')) {
     lines.push('Or just type it in any channel: `@sam ' + trigger + ' saved me two hours today`.');
@@ -304,10 +304,10 @@ function buildHelpCard_(userId) {
 
   lines.push('');
   lines.push('*The rules*');
-  lines.push('• *' + allowance + ' ' + wagWord_(allowance) + ' per ' + word + '*, refilling ' + periodResetText_() + '. Unused wags ' +
+  lines.push('• *' + allowance + ' ' + wagWord_(allowance) + ' per ' + word + '*, refilling ' + periodResetText_() + '. Unused tailwags ' +
     (cfgBool('CARRY_OVER_UNUSED') ? 'roll forward.' : 'expire — spend them.'));
   if (cap > 0) lines.push('• At most *' + cap + '* to the same person per ' + word + '.');
-  if (!cfgBool('ALLOW_SELF_KUDOS')) lines.push('• No wags for yourself.');
+  if (!cfgBool('ALLOW_SELF_KUDOS')) lines.push('• No tailwags for yourself.');
   lines.push('• Reasons are public and permanent. Write something they would want to read back.');
 
   lines.push('');
@@ -315,13 +315,13 @@ function buildHelpCard_(userId) {
   lines.push('`/wags` — your balance, badges and raffle entries');
   lines.push('`/wags leaderboard` · `/wags month` · `/wags all` — the boards');
   lines.push('`/wags given` — who has been most generous');
-  lines.push('`/wags @someone` — someone else\'s wags');
+  lines.push('`/wags @someone` — someone else\'s tailwags');
 
   if (cfgBool('RAFFLE_ENABLED')) {
     lines.push('');
     lines.push('*Rewards*');
-    lines.push('Badges unlock automatically at ' + cfgList('BADGE_THRESHOLDS').join(', ') + ' wags received.');
-    lines.push('Every wag you receive is one entry in the monthly raffle' +
+    lines.push('Badges unlock automatically at ' + cfgList('BADGE_THRESHOLDS').join(', ') + ' tailwags received.');
+    lines.push('Every tailwag you receive is one entry in the monthly raffle' +
       (cfgStr('RAFFLE_PRIZE') ? ' for *' + escapeSlack_(cfgStr('RAFFLE_PRIZE')) + '*' : '') + '.');
   }
 

@@ -269,7 +269,7 @@ function removeUser_(userId) {
 }
 
 /**
- * Seeds a handful of fake wags so the leaderboard and App Home can be reviewed
+ * Seeds a handful of fake tailwags so the leaderboard and App Home can be reviewed
  * before the team is let loose. Run clearDemoData() afterwards.
  */
 function seedDemoData() {
